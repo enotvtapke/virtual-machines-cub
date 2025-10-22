@@ -1,4 +1,4 @@
-package cub.virtual.machines.decompiler
+package cub.virtual.machines
 
 sealed interface Instruction {
     data class BINOP(val op: Operation) : Instruction

@@ -1,6 +1,9 @@
 package cub.virtual.machines.decompiler
 
-import cub.virtual.machines.decompiler.Instruction.*
+import cub.virtual.machines.Instruction
+import cub.virtual.machines.Instruction.*
+import cub.virtual.machines.Operation
+import cub.virtual.machines.Pattern
 
 @OptIn(ExperimentalStdlibApi::class)
 fun decompile(bytecode: Bytecode): Instruction? {

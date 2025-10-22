@@ -1,5 +1,6 @@
 package cub.virtual.machines.decompiler
 
+import cub.virtual.machines.Designation
 import java.nio.ByteBuffer
 import java.nio.ByteOrder.LITTLE_ENDIAN
 import java.nio.file.Path
