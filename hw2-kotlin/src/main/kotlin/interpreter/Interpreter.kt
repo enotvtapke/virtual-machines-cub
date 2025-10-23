@@ -4,6 +4,7 @@ import cub.virtual.machines.Designation
 import cub.virtual.machines.Instruction
 import cub.virtual.machines.Instruction.*
 import cub.virtual.machines.Operation
+import cub.virtual.machines.Pattern
 import cub.virtual.machines.decompiler.Bytecode
 
 class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
@@ -16,10 +17,25 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         outputStream = mutableListOf()
     )
 
-    fun interpret() {
+    fun output() = state.outputStream.toList()
+
+    private fun error(instruction: Instruction, message: String): Nothing {
+        throw InterpreterException(
+            """Error while interpreting instruction $instruction.
+                |Message: "$message".
+                |Bytecode: $bytecode
+                |Interpreter state: $state
+            """.trimMargin()
+        )
+    }
+
+    fun interpret(): Unit? {
         val instruction = bytecode.next()
+        if (instruction == null) return null
+        fun error(message: String): Nothing {
+            error(instruction, message)
+        }
         when (instruction) {
-            null -> return
             is IMPORT, is PUBLIC, is EXTERN, is LINE -> Unit
             is BINOP -> {
                 val y = state.opStack.removeLast()
@@ -31,14 +47,14 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
                         } else if (x is Value.IntVal || y is Value.IntVal) {
                             0
                         } else {
-                            throw IllegalArgumentException("Cannot compare non-integer values $x and $y")
+                            error("Cannot compare non-integer values $x and $y")
                         }
 
                         state.opStack.addLast(Value.IntVal(z))
                     }
 
                     else -> {
-                        interpret(instruction.op)(x.asIntVal(), y.asIntVal())
+                        state.opStack.addLast(Value.IntVal(interpret(instruction.op)(x.asIntVal(), y.asIntVal())))
                     }
                 }
             }
@@ -52,14 +68,14 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
                 )
             )
 
-            ELEM -> evalBuiltIn(".elem")
+            ELEM -> evalBuiltIn(".elem", listOf())
             is LD -> {
                 when (instruction.designation) {
                     is Designation.Global -> state.globals[instruction.designation.index] ?: throw IllegalArgumentException("Unknown global ${instruction.designation.index}")
                     is Designation.Local -> state.local.locals[instruction.designation.index]
                     is Designation.Access -> state.local.closure[instruction.designation.index]
                     is Designation.Arg -> state.local.args[instruction.designation.index]
-                    is Designation.Fun -> throw IllegalArgumentException("Cannot load ${instruction.designation} on stack")
+                    is Designation.Fun -> error("Cannot load ${instruction.designation} on stack")
                 }.also {
                     state.opStack.addLast(it)
                 }
@@ -82,28 +98,104 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
                         updateElem(array, variable.value, value)
                         state.opStack.addLast(value)
                     }
-                    else -> throw InterpreterException(instruction, "Unknown arg for STA $variable")
+                    else -> error("Unknown arg for STA $variable")
                 }
             }
             is SLABEL, is FLABEL, is LABEL -> Unit
             is JMP -> bytecode.jump(instruction.position)
-            is ARRAY -> TODO()
-            is BEGIN -> TODO()
-            is CALL -> TODO()
-            is CALLC -> TODO()
-            is CJMP -> TODO()
-            is CLOSURE -> TODO()
-            DROP -> TODO()
-            DUP -> TODO()
-            END -> TODO()
-            is FAIL -> TODO()
-            is PATT -> TODO()
-            RET -> TODO()
-            SWAP -> TODO()
-            is TAG -> TODO()
+            is CJMP -> {
+                when (instruction.cond) {
+                    "z" -> if (state.opStack.removeLast().asIntVal() == 0) bytecode.jump(instruction.position)
+                    "nz" -> if (state.opStack.removeLast().asIntVal() != 0) bytecode.jump(instruction.position)
+                    else -> error("Unknown condition ${instruction.cond}")
+                }
+            }
+            is CLOSURE -> {
+                val closure = instruction.closureArgs.map {
+                    when(it) {
+                        is Designation.Arg -> state.local.args[it.index]
+                        is Designation.Access -> state.local.closure[it.index]
+                        is Designation.Local -> state.local.locals[it.index]
+                        else -> error("Wrong value $it in closure")
+                    }
+                }
+                state.opStack.addLast(Value.Closure(instruction.offset, closure))
+            }
+            is CALL -> {
+                val args = state.opStack.takeLast(instruction.n).reversed().toMutableList()
+                if (instruction.l < 0) {
+                    TODO("Eval builtin")
+                } else {
+                    state.controlStack.addLast(StackFrame(bytecode.offset() ,state.local))
+                    state.local = Local(args, mutableListOf(), mutableListOf())
+                    bytecode.jump(instruction.l)
+                }
+            }
+            is CALLC -> {
+                val f = state.opStack.removeLast()
+                val args = state.opStack.takeLast(instruction.n).reversed().toMutableList()
+                when (f) {
+                    is Value.Builtin -> evalBuiltIn(f.name, args)
+                    is Value.Closure -> {
+                        state.controlStack.addLast(StackFrame(bytecode.offset() ,state.local))
+                        state.local = Local(args, mutableListOf(), f.closure.toMutableList())
+                        bytecode.jump(f.offset)
+                    }
+                    else -> error("Cannot call value $f")
+                }
+            }
+            is BEGIN -> state.local.locals = MutableList(instruction.localsNum)  { Value.Empty }
+            END, RET -> if (state.controlStack.isNotEmpty()) state.controlStack.removeLast() else return null
+            DROP -> state.opStack.removeLast()
+            DUP -> state.opStack.addLast(state.opStack.last())
+            SWAP -> {
+                val x = state.opStack.removeLast()
+                val y = state.opStack.removeLast()
+                state.opStack.addLast(x)
+                state.opStack.addLast(y)
+            }
+            is TAG -> {
+                val x = state.opStack.removeLast()
+                val r = when(x) {
+                    is Value.Sexp -> if (x.tag == instruction.tag && x.value.size == instruction.arity) 1 else 0
+                    else -> 0
+                }
+                state.opStack.addLast(Value.IntVal(r))
+            }
+            is ARRAY -> {
+                val x = state.opStack.removeLast()
+                val r = when(x) {
+                    is Value.Array -> if (x.value.size == instruction.size) 1 else 0
+                    else -> 0
+                }
+                state.opStack.addLast(Value.IntVal(r))
+            }
+            is FAIL -> throw LamaException("matching value ${state.opStack.last()} failure at location (${instruction.line}, ${instruction.column})")
+            is PATT -> {
+                val x = state.opStack.removeLast()
+                val r = when (instruction.pattern) {
+                    Pattern.StrCmp -> {
+                        val y = state.opStack.removeLast()
+                        if (x is Value.StringVal && y is Value.StringVal && x.value.contentEquals(y.value)) {
+                            1
+                        } else {
+                            0
+                        }
+                    }
+                    Pattern.String -> if (x is Value.StringVal) 1 else 0
+                    Pattern.Array -> if (x is Value.Array) 1 else 0
+                    Pattern.Sexp -> if (x is Value.Sexp) 1 else 0
+                    Pattern.Boxed -> if (x !is Value.IntVal) 1 else 0
+                    Pattern.UnBoxed -> if (x is Value.IntVal) 1 else 0
+                    Pattern.Closure -> if (x is Value.Closure) 1 else 0
+                }
+                state.opStack.addLast(Value.IntVal(r))
+            }
         }
-
+        return Unit
     }
+
+    class LamaException(message: String) : RuntimeException(message)
 
     fun interpret(operation: Operation): (Int, Int) -> Int {
         fun Boolean.toInt() = if (this) 1 else 0
@@ -129,22 +221,22 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         READ("read"), WRITE("write"), ELEM(".elem"), LENGTH("length"), ARRAY(".array"), STRING("string")
     }
 
-    fun evalBuiltIn(name: String) {
+    fun evalBuiltIn(name: String, args: List<Value>) {
         when (name) {
             "read" -> {
                 val x = state.inputStream.removeFirst()
-                Value.IntVal(x)
+                state.opStack.addLast(Value.IntVal(x))
             }
 
             "write" -> {
-                val x = state.opStack.removeLast().asIntVal()
+                val x = args[0].asIntVal()
                 state.outputStream.add(x)
                 Value.Empty
             }
 
             ".elem" -> {
-                val arrayLike = state.opStack.removeLast()
-                val index = state.opStack.removeLast().asIntVal()
+                val arrayLike = args[0]
+                val index = args[1].asIntVal()
                 when (arrayLike) {
                     is Value.StringVal -> state.opStack.addLast(Value.IntVal(arrayLike.value[index].toInt())) // TODO Maybe I shouldn't fill with sign bit
                     is Value.Array -> state.opStack.addLast(arrayLike.value[index])
@@ -154,13 +246,14 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             }
 
             "length" -> {
-                val arrayLike = state.opStack.removeLast()
-                when (arrayLike) {
+                val arrayLike = args[0]
+                val r = when (arrayLike) {
                     is Value.StringVal -> Value.IntVal(arrayLike.value.size)
                     is Value.Array -> Value.IntVal(arrayLike.value.size)
                     is Value.Sexp -> Value.IntVal(arrayLike.value.size)
                     else -> throw IllegalArgumentException("Value $arrayLike is not array-like")
                 }
+                state.opStack.addLast(r)
             }
             ".array" -> {TODO()}
             "string" -> {TODO()}
@@ -168,7 +261,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         }
     }
 
-    class InterpreterException(instruction: Instruction, message: String) : RuntimeException("Error interpreting $instruction: $message") // TODO print IP
+    class InterpreterException(message: String) : RuntimeException(message)
 
 //    let update_elem x i v =
 //    match x with
@@ -203,7 +296,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         data class StringVal(val value: ByteArray) : Value
         data class Array(val value: MutableList<Value>) : Value
         data class Sexp(val tag: String, val value: MutableList<Value>) : Value
-        data class Closure(val args: List<String>, val body: String, val c: List<Value>) : Value
+        data class Closure(val offset: Int, val closure: List<Value>) : Value
         data class FunRef(val name: String, val args: List<String>, val body: String, val index: Int) : Value
         data class Builtin(val name: String) : Value
 
@@ -211,17 +304,15 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             if (this is IntVal) value else throw IllegalArgumentException("Cannot convert $this to integer")
     }
 
-    data class Local(val args: MutableList<Value>, val locals: MutableList<Value>, val closure: MutableList<Value>)
+    data class Local(val args: MutableList<Value>, var locals: MutableList<Value>, val closure: MutableList<Value>) // TODO Maybe I should use arrays, not lists
 
-    data class Prg(val instructionIndex: Int)
-
-    data class StackFrame(val program: Prg, val local: Local)
+    data class StackFrame(val callOffset: Int, val local: Local)
 
     data class State(
         val controlStack: ArrayDeque<StackFrame>,
         val opStack: ArrayDeque<Value>,
         val globals: MutableMap<Int, Value>,
-        val local: Local,
+        var local: Local,
         val inputStream: MutableList<Int>,
         val outputStream: MutableList<Int>,
     ) {

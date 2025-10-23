@@ -65,6 +65,8 @@ class Bytecode {
         this.globalArea = globalArea
     }
 
+    fun offset() = code.position()
+
     fun jump(position: Int) {
         code.position(position)
     }

@@ -41,13 +41,13 @@ sealed interface Instruction {
     //(* begins procedure definition               *)
     //| BEGIN of
     //string * int * int * Value.designation list * string list * scope list
-    data class BEGIN(val arity: Int, val locals: Int) : Instruction
+    data class BEGIN(val arity: Int, val localsNum: Int) : Instruction
     //(* end procedure definition                  *)
     //| END
     data object END : Instruction
     //(* create a closure                          *)
     //| CLOSURE of string * Value.designation list
-    data class CLOSURE(val l: Int, val n: Int, val closureArgs: List<Designation>) : Instruction
+    data class CLOSURE(val offset: Int, val numArgs: Int, val closureArgs: List<Designation>) : Instruction // TODO Maybe I dont really need numArgs
     //(* proto closure                             *)
     //| PROTO of string * string
     //(* proto closure to a possible constant      *)
