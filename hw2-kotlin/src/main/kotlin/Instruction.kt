@@ -4,7 +4,7 @@ sealed interface Instruction {
     data class BINOP(val op: Operation) : Instruction
     data class CONST(val value: Int) : Instruction
     data class STRING(val value: String) : Instruction
-    data class SEXP(val op: String, val arity: Int) : Instruction
+    data class SEXP(val tag: String, val n: Int) : Instruction
     //(* load a variable to the stack              *)
     //| LD of Value.designation
     data class LD(val designation: Designation) : Instruction
@@ -99,7 +99,7 @@ sealed interface Instruction {
 }
 
 enum class Operation {
-    ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, NOT
+    ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND
 }
 
 sealed interface Designation {
