@@ -1,33 +1,9 @@
 package cub.virtual.machines.decompiler
 
+import cub.virtual.machines.Builtin
 import cub.virtual.machines.Designation
 import cub.virtual.machines.Instruction
-import cub.virtual.machines.Instruction.ARRAY
-import cub.virtual.machines.Instruction.BEGIN
-import cub.virtual.machines.Instruction.BINOP
-import cub.virtual.machines.Instruction.CALL
-import cub.virtual.machines.Instruction.CALLC
-import cub.virtual.machines.Instruction.CJMP
-import cub.virtual.machines.Instruction.CLOSURE
-import cub.virtual.machines.Instruction.CONST
-import cub.virtual.machines.Instruction.DROP
-import cub.virtual.machines.Instruction.DUP
-import cub.virtual.machines.Instruction.ELEM
-import cub.virtual.machines.Instruction.END
-import cub.virtual.machines.Instruction.FAIL
-import cub.virtual.machines.Instruction.JMP
-import cub.virtual.machines.Instruction.LD
-import cub.virtual.machines.Instruction.LDA
-import cub.virtual.machines.Instruction.LINE
-import cub.virtual.machines.Instruction.PATT
-import cub.virtual.machines.Instruction.RET
-import cub.virtual.machines.Instruction.SEXP
-import cub.virtual.machines.Instruction.ST
-import cub.virtual.machines.Instruction.STA
-import cub.virtual.machines.Instruction.STI
-import cub.virtual.machines.Instruction.STRING
-import cub.virtual.machines.Instruction.SWAP
-import cub.virtual.machines.Instruction.TAG
+import cub.virtual.machines.Instruction.*
 import cub.virtual.machines.Operation
 import cub.virtual.machines.Pattern
 import java.nio.ByteBuffer
@@ -40,11 +16,11 @@ class Bytecode {
     private val publicSymbolsNumber: Int
     private val publicTable: ByteBuffer
     private val stringTable: ByteBuffer
-    private val code: ByteBuffer
+    val code: ByteBuffer
     private val globalArea: ByteBuffer
 
-    constructor(path: Path) {
-        val bytes = ByteBuffer.wrap(path.readBytes()).asReadOnlyBuffer().order(LITTLE_ENDIAN)
+    constructor(byteArray: ByteArray) {
+        val bytes = ByteBuffer.wrap(byteArray).asReadOnlyBuffer().order(LITTLE_ENDIAN)
         val stringTableSize = bytes.int
         val globalAreaSize = bytes.int
         val publicSymbolsNumber = bytes.int
@@ -65,6 +41,8 @@ class Bytecode {
         this.globalArea = globalArea
     }
 
+    constructor(path: Path): this(path.readBytes())
+
     fun offset() = code.position()
 
     fun jump(position: Int) {
@@ -83,7 +61,7 @@ class Bytecode {
         }
 
         return when (high) {
-            0 -> BINOP(Operation.entries[low])
+            0 -> BINOP(Operation.entries[low - 1])
             1 -> when (low) {
                 0 -> CONST(code.int)
                 1 -> STRING(string())
@@ -126,11 +104,11 @@ class Bytecode {
 
             6 -> PATT(Pattern.entries[low])
             7 -> when (low) {
-                0 -> CALL(-1, -1) // Lread
-                1 -> CALL(-1, -1) // Lwrite
-                2 -> CALL(-1, -1) // Llength
-                3 -> CALL(-1, -1) // Lstring
-                4 -> CALL(-1, code.int) // Barray
+                0 -> CALL_BUILTIN(Builtin.READ)
+                1 -> CALL_BUILTIN(Builtin.WRITE)
+                2 -> CALL_BUILTIN(Builtin.LENGTH)
+                3 -> CALL_BUILTIN(Builtin.STRING)
+                4 -> CALL_ARRAY_BUILTIN(code.int)
                 else -> unknownOpcode()
             }
 

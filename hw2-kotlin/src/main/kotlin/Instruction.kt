@@ -60,6 +60,8 @@ sealed interface Instruction {
     //(* calls a function/procedure                *)
     //| CALL of string * int * bool
     data class CALL(val l: Int, val n: Int) : Instruction
+    data class CALL_BUILTIN(val builtin: Builtin) : Instruction
+    data class CALL_ARRAY_BUILTIN(val n: Int) : Instruction
     //(* returns from a function                   *)
     //| RET
     data object RET : Instruction
@@ -99,7 +101,16 @@ sealed interface Instruction {
 }
 
 enum class Operation {
-    ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND
+    ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, OR
+}
+
+enum class Builtin {
+    READ,
+    WRITE,
+    ELEM,
+    LENGTH,
+    STRING,
+    ARRAY,
 }
 
 sealed interface Designation {
