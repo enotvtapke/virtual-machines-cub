@@ -4,8 +4,9 @@ import cub.virtual.machines.Designation
 import cub.virtual.machines.Instruction
 import cub.virtual.machines.Instruction.*
 import cub.virtual.machines.Operation
+import cub.virtual.machines.decompiler.Bytecode
 
-class Interpreter(input: List<Int>) {
+class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
     private val state: State = State(
         controlStack = ArrayDeque(),
         opStack = ArrayDeque(),
@@ -14,6 +15,95 @@ class Interpreter(input: List<Int>) {
         inputStream = input.toMutableList(),
         outputStream = mutableListOf()
     )
+
+    fun interpret() {
+        val instruction = bytecode.next()
+        when (instruction) {
+            null -> return
+            is IMPORT, is PUBLIC, is EXTERN, is LINE -> Unit
+            is BINOP -> {
+                val y = state.opStack.removeLast()
+                val x = state.opStack.removeLast()
+                when (instruction.op) {
+                    Operation.EQ -> {
+                        val z = if (x is Value.IntVal && y is Value.IntVal) {
+                            interpret(instruction.op)(x.value, y.value)
+                        } else if (x is Value.IntVal || y is Value.IntVal) {
+                            0
+                        } else {
+                            throw IllegalArgumentException("Cannot compare non-integer values $x and $y")
+                        }
+
+                        state.opStack.addLast(Value.IntVal(z))
+                    }
+
+                    else -> {
+                        interpret(instruction.op)(x.asIntVal(), y.asIntVal())
+                    }
+                }
+            }
+
+            is CONST -> state.opStack.addLast(Value.IntVal(instruction.value))
+            is STRING -> state.opStack.addLast(Value.StringVal(instruction.value.toByteArray()))
+            is SEXP -> state.opStack.addLast(
+                Value.Sexp(
+                    instruction.tag,
+                    state.opStack.takeLast(instruction.n).reversed().toMutableList()
+                )
+            )
+
+            ELEM -> evalBuiltIn(".elem")
+            is LD -> {
+                when (instruction.designation) {
+                    is Designation.Global -> state.globals[instruction.designation.index] ?: throw IllegalArgumentException("Unknown global ${instruction.designation.index}")
+                    is Designation.Local -> state.local.locals[instruction.designation.index]
+                    is Designation.Access -> state.local.closure[instruction.designation.index]
+                    is Designation.Arg -> state.local.args[instruction.designation.index]
+                    is Designation.Fun -> throw IllegalArgumentException("Cannot load ${instruction.designation} on stack")
+                }.also {
+                    state.opStack.addLast(it)
+                }
+            }
+            is LDA -> state.opStack.addLast(Value.Var(instruction.designation))
+            is ST -> state.update(instruction.designation, state.opStack.last())
+            STI -> {
+                val value = state.opStack.removeLast()
+                val variable = state.opStack.removeLast() as Value.Var
+                state.update(variable.designation, value)
+                state.opStack.addLast(value)
+            }
+            STA -> {
+                val value  = state.opStack.removeLast()
+                val variable  = state.opStack.removeLast()
+                when (variable) {
+                    is Value.Var -> state.update(variable.designation, value).also { state.opStack.addLast(value) }
+                    is Value.IntVal -> {
+                        val array = state.opStack.removeLast()
+                        updateElem(array, variable.value, value)
+                        state.opStack.addLast(value)
+                    }
+                    else -> throw InterpreterException(instruction, "Unknown arg for STA $variable")
+                }
+            }
+            is SLABEL, is FLABEL, is LABEL -> Unit
+            is JMP -> bytecode.jump(instruction.position)
+            is ARRAY -> TODO()
+            is BEGIN -> TODO()
+            is CALL -> TODO()
+            is CALLC -> TODO()
+            is CJMP -> TODO()
+            is CLOSURE -> TODO()
+            DROP -> TODO()
+            DUP -> TODO()
+            END -> TODO()
+            is FAIL -> TODO()
+            is PATT -> TODO()
+            RET -> TODO()
+            SWAP -> TODO()
+            is TAG -> TODO()
+        }
+
+    }
 
     fun interpret(operation: Operation): (Int, Int) -> Int {
         fun Boolean.toInt() = if (this) 1 else 0
@@ -95,94 +185,6 @@ class Interpreter(input: List<Int>) {
         }
     }
 
-    fun interpret(instruction: Instruction) {
-
-        when (instruction) {
-            is IMPORT, is PUBLIC, is EXTERN, is LINE -> Unit
-            is BINOP -> {
-                val y = state.opStack.removeLast()
-                val x = state.opStack.removeLast()
-                when (instruction.op) {
-                    Operation.EQ -> {
-                        val z = if (x is Value.IntVal && y is Value.IntVal) {
-                            interpret(instruction.op)(x.value, y.value)
-                        } else if (x is Value.IntVal || y is Value.IntVal) {
-                            0
-                        } else {
-                            throw IllegalArgumentException("Cannot compare non-integer values $x and $y")
-                        }
-
-                        state.opStack.addLast(Value.IntVal(z))
-                    }
-
-                    else -> {
-                        interpret(instruction.op)(x.asIntVal(), y.asIntVal())
-                    }
-                }
-            }
-
-            is CONST -> state.opStack.addLast(Value.IntVal(instruction.value))
-            is STRING -> state.opStack.addLast(Value.StringVal(instruction.value.toByteArray()))
-            is SEXP -> state.opStack.addLast(
-                Value.Sexp(
-                    instruction.tag,
-                    state.opStack.takeLast(instruction.n).reversed().toMutableList()
-                )
-            )
-
-            ELEM -> evalBuiltIn(".elem")
-            is LD -> {
-                when (instruction.designation) {
-                    is Designation.Global -> state.globals[instruction.designation.index] ?: throw IllegalArgumentException("Unknown global ${instruction.designation.index}")
-                    is Designation.Local -> state.local.locals[instruction.designation.index]
-                    is Designation.Access -> state.local.closure[instruction.designation.index]
-                    is Designation.Arg -> state.local.args[instruction.designation.index]
-                    is Designation.Fun -> throw IllegalArgumentException("Cannot load ${instruction.designation} on stack")
-                }.also {
-                    state.opStack.addLast(it)
-                }
-            }
-            is LDA -> state.opStack.addLast(Value.Var(instruction.designation))
-            is ST -> state.update(instruction.designation, state.opStack.last())
-            STI -> {
-                val value = state.opStack.removeLast()
-                val variable = state.opStack.removeLast() as Value.Var
-                state.update(variable.designation, value)
-                state.opStack.addLast(value)
-            }
-            STA -> {
-                val value  = state.opStack.removeLast()
-                val variable  = state.opStack.removeLast()
-                when (variable) {
-                    is Value.Var -> state.update(variable.designation, value).also { state.opStack.addLast(value) }
-                    is Value.IntVal -> {
-                        val array = state.opStack.removeLast()
-                        updateElem(array, variable.value, value)
-                        state.opStack.addLast(value)
-                    }
-                    else -> throw InterpreterException(instruction, "Unknown arg for STA $variable")
-                }
-            }
-            is SLABEL, is FLABEL, is LABEL -> Unit
-            is JMP -> TODO()
-            is ARRAY -> TODO()
-            is BEGIN -> TODO()
-            is CALL -> TODO()
-            is CALLC -> TODO()
-            is CJMP -> TODO()
-            is CLOSURE -> TODO()
-            DROP -> TODO()
-            DUP -> TODO()
-            END -> TODO()
-            is FAIL -> TODO()
-            is PATT -> TODO()
-            RET -> TODO()
-            SWAP -> TODO()
-            is TAG -> TODO()
-        }
-
-    }
-
     sealed interface Value {
         //        | Empty
 //        | Var     of designation
@@ -238,4 +240,3 @@ class Interpreter(input: List<Int>) {
         }
     }
 }
-
