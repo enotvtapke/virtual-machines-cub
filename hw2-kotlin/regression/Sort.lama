@@ -24,4 +24,11 @@ fun generate (n) {
   if n then n : generate (n-1) else {} fi
 }
 
-bubbleSort (generate (10000))
+fun print(x) {
+    case x of
+      h : tl -> write(h);print(tl)
+      | {} -> skip
+    esac
+}
+
+print(bubbleSort (generate (10000)))

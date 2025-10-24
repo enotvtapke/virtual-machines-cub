@@ -15,7 +15,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         controlStack = ArrayDeque(),
         opStack = ArrayDeque(),
         globals = mutableMapOf(), // fill with builtins
-        local = Local(mutableListOf(), mutableListOf(), mutableListOf()),
+        local = Local(emptyArray(), emptyArray(), emptyArray()),
         inputStream = input.toMutableList(),
         outputStream = mutableListOf()
     )
@@ -37,8 +37,8 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
     fun interpret(): Unit? {
         counter += 1
         val instruction = bytecode.next()
-//        if (counter % 10000 == 0) {
-//            println()
+//        if (counter % 100000 == 0) {
+//            println(state.controlStack.size)
 //        }
         if (instruction == null) return null
         fun error(message: String): Nothing {
@@ -73,7 +73,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             is SEXP -> state.opStack.addLast(
                 Value.Sexp(
                     instruction.tag,
-                    state.opStack.removeLast(instruction.n).reversed().toMutableList()
+                    state.opStack.removeLast(instruction.n).reversed().toTypedArray()
                 )
             )
 
@@ -133,9 +133,9 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             is CALL_BUILTIN -> evalBuiltIn(instruction.builtin)
             is CALL_ARRAY_BUILTIN -> evalBuiltIn(Builtin.ARRAY, instruction.n)
             is CALL -> {
-                val args = state.opStack.removeLast(instruction.n).reversed().toMutableList()
+                val args = state.opStack.removeLast(instruction.n).reversed().toTypedArray()
                 state.controlStack.addLast(StackFrame(bytecode.offset() ,state.local))
-                state.local = Local(args, mutableListOf(), mutableListOf())
+                state.local = Local(args, emptyArray(), emptyArray())
                 bytecode.jump(instruction.l)
             }
             is CALLC -> {
@@ -145,15 +145,15 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
                 when (f) {
                     is Value.Builtin -> evalBuiltIn(f.name, instruction.n)
                     is Value.Closure -> {
-                        val args = state.opStack.removeLast(instruction.n).reversed().toMutableList()
+                        val args = state.opStack.removeLast(instruction.n).reversed().toTypedArray()
                         state.controlStack.addLast(StackFrame(bytecode.offset() ,state.local))
-                        state.local = Local(args, mutableListOf(), f.closure.toMutableList())
+                        state.local = Local(args, emptyArray(), f.closure.toTypedArray())
                         bytecode.jump(f.offset)
                     }
                     else -> error("Cannot call value $f")
                 }
             }
-            is BEGIN -> state.local.locals = MutableList(instruction.localsNum)  { Value.Empty }
+            is BEGIN -> state.local.locals = Array(instruction.localsNum) { Value.Empty }
             END, RET -> if (state.controlStack.isNotEmpty()) {
                 val frame = state.controlStack.removeLast()
                 state.local = frame.local
@@ -265,7 +265,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
                 }
                 state.opStack.addLast(r)
             }
-            Builtin.ARRAY -> state.opStack.removeLast(arrayArgsNum!!).reversed().let { state.opStack.addLast(Value.Array(it.toMutableList())) }
+            Builtin.ARRAY -> state.opStack.removeLast(arrayArgsNum!!).reversed().let { state.opStack.addLast(Value.Array(it.toTypedArray())) }
             Builtin.STRING -> state.opStack.addLast(Value.StringVal(state.opStack.removeLast().toString().toByteArray()))
         }
     }
@@ -303,8 +303,8 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
         data class Elem(val v: Value, val index: Int) : Value
         data class IntVal(val value: Int) : Value
         data class StringVal(val value: ByteArray) : Value
-        data class Array(val value: MutableList<Value>) : Value
-        class Sexp(val tag: String, val value: MutableList<Value>) : Value {
+        data class Array(val value: kotlin.Array<Value>) : Value
+        class Sexp(val tag: String, val value: kotlin.Array<Value>) : Value {
             override fun toString(): String {
                 return "Sexp${super.toString().drop(55)}(tag='$tag', value=$value)"
             }
@@ -318,7 +318,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             if (this is IntVal) value else throw IllegalArgumentException("Cannot convert $this to integer")
     }
 
-    data class Local(val args: MutableList<Value>, var locals: MutableList<Value>, val closure: MutableList<Value>) // TODO Maybe I should use arrays, not lists
+    data class Local(val args: Array<Value>, var locals: Array<Value>, val closure: Array<Value>) // TODO Maybe I should use arrays, not lists
 
     data class StackFrame(val callOffset: Int, val local: Local)
 
