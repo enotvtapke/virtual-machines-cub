@@ -9,10 +9,13 @@ import kotlin.io.path.readText
 
 fun main() {
     test("test*.lama")
+    val time = System.currentTimeMillis()
     test("Sort.lama")
+    val duration = System.currentTimeMillis() - time
+    println("Total time for sort: ${duration / 1000.0} seconds")
 }
 
-private fun test(pattern: String) {
+private fun test(pattern: String, printDecompiled: Boolean = false) {
     val tests = Path("./regression")
     tests.listDirectoryEntries(pattern).sorted().forEach { source ->
         val filename = source.fileName.toString().removeSuffix(".lama")
@@ -21,13 +24,17 @@ private fun test(pattern: String) {
         println("Testing $filename\n")
 
         var bytecode = Bytecode(tests.resolve(Path("$filename.bc")))
-        generateSequence {
-            val pos = bytecode.code.position()
-            val instr = bytecode.next()
-            println("$pos: $instr")
-            instr
-        }.toList()
-        bytecode = Bytecode(tests.resolve(Path("$filename.bc")))
+        if (printDecompiled) {
+            println("Decompiled code:")
+            generateSequence {
+                val pos = bytecode.code.position()
+                val instr = bytecode.next()
+                println("$pos: $instr")
+                instr
+            }.toList()
+            bytecode = Bytecode(tests.resolve(Path("$filename.bc")))
+            println()
+        }
         val interpreter = Interpreter(bytecode, input)
         try {
             while (interpreter.interpret() != null) {
@@ -37,7 +44,7 @@ private fun test(pattern: String) {
             println(interpreter.state)
             throw e
         }
-        println("\n" + interpreter.output())
+        println("Output:\n" + interpreter.output().joinToString("\n"))
         println("\n======================\n")
     }
 }
