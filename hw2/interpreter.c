@@ -49,12 +49,24 @@ static aint get_global(const int index) {
   return state.bf->global_ptr[index];
 }
 
+static void set_global(const int index, const aint value) {
+  state.bf->global_ptr[index] = value;
+}
+
 static aint get_local(const int index) {
   return *(state.ebp - 1 - index); // - 1 because we saved the number of args between ebp and locals
 }
 
+static void set_local(const int index, const aint value) {
+  *(state.ebp - 1 - index) = value;
+}
+
 static aint get_arg(const int index) {
   return *(state.ebp + 3 + index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
+}
+
+static void set_arg(const int index, const aint value) {
+  *(state.ebp + 3 + index) = value;
 }
 
 static data * safe_retrieve_closure(const aint closure_ptr) {
@@ -70,6 +82,12 @@ static aint get_closure(const int index) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
   return ((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
+}
+
+static void set_closure(const int index, const aint value) {
+  const aint closure_ptr = *(state.ebp + 2);
+  const data * closure = safe_retrieve_closure(closure_ptr);
+  ((aint *) closure->contents)[1 + index] = value;
 }
 
 // static int read_int() {
@@ -157,6 +175,25 @@ static aint get_var(const char designation, const int index, const char h, const
   }
 }
 
+static void set_var(const char designation, const int index, const aint value, const char h, const char l) {
+  switch (designation) {
+    case 0:
+      set_global(index, value);
+      break;
+    case 1:
+      set_local(index, value);
+      break;
+    case 2:
+      set_arg(index, value);
+      break;
+    case 3:
+      set_closure(index, value);
+      break;
+    default:
+      FAIL;
+  }
+}
+
 /* Disassembles the bytecode pool */
 void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
@@ -208,19 +245,19 @@ void interpret(FILE *f, bytefile *bf) {
             int n = INT;
             fprintf(f, "SEXP\t%s ", tag);
 
-            aint args[n + 1]; // I could not use args if the stack grows upwards
+            aint args[n + 1]; // I could not use args if the stack grew upwards
             for (int i = 0; i < n; i++) {
               args[i] = pop();
             }
             args[n] = LtagHash(tag);
-            Bsexp(args, BOX(n + 1));
+            push((aint) Bsexp(args, BOX(n + 1)));
             fprintf(f, "%d", n);
             break;
           }
 
           case 3: {
             fprintf(f, "STI");
-            failure("Should not happen. Indirect assignemts are temporarily prohibited.");
+            failure("Should not happen. Indirect assignments are temporarily prohibited.");
             break;
           }
 
@@ -258,56 +295,76 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 8:
             fprintf(f, "DROP");
+            pop();
             break;
 
-          case 9:
+          case 9: {
             fprintf(f, "DUP");
+            const aint value = pop();
+            push(value);
+            push(value);
             break;
+          }
 
-          case 10:
+          case 10: {
             fprintf(f, "SWAP");
+            const aint a = pop();
+            const aint b = pop();
+            push(a);
+            push(b);
             break;
+          }
 
-          case 11:
+          case 11: {
             fprintf(f, "ELEM");
+            const aint index = pop();
+            void * array = (void *) pop();
+            push((aint) Belem(array, index));
             break;
+          }
 
           default:
             FAIL;
         }
         break;
 
-      case 2:
-      case 3:
-      case 4:
-        fprintf(f, "%s\t", lds[h - 2]);
-        switch (l) {
-          case 0:
-            fprintf(f, "G(%d)", INT);
-            break;
-          case 1:
-            fprintf(f, "L(%d)", INT);
-            break;
-          case 2:
-            fprintf(f, "A(%d)", INT);
-            break;
-          case 3:
-            fprintf(f, "C(%d)", INT);
-            break;
-          default:
-            FAIL;
-        }
+      case 2: {
+        fprintf(f, "LD");
+        get_var(l, INT, h, l);
         break;
+      }
+      case 3: {
+        fprintf(f, "LDA");
+        failure("Should not happen. Indirect assignments are temporarily prohibited.");
+        break;
+      }
+      case 4: {
+        fprintf(f, "ST");
+        set_var(l, INT, *state.esp, h, l);
+        break;
+      }
 
       case 5:
         switch (l) {
-          case 0:
-            fprintf(f, "CJMPz\t0x%.8x", INT);
+          case 0: {
+            const aint offset = INT;
+            fprintf(f, "CJMPz\t0x%.8x", offset);
+            const aint value = UNBOX(pop());
+            if (value == 0) {
+              state.ip = bf->code_ptr + offset;
+            }
             break;
+          }
 
-          case 1:
-            fprintf(f, "CJMPnz\t0x%.8x", INT);
+          case 1: {
+            const aint offset = INT;
+            fprintf(f, "CJMPnz\t0x%.8x", offset);
+            const aint value = UNBOX(pop());
+            if (value != 0) {
+              state.ip = bf->code_ptr + offset;
+            }
             break;
+          }
 
           case 2: {
             const int args_num = INT;
@@ -321,11 +378,12 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 3:
+          case 3: {
             fprintf(f, "CBEGIN\t%d ", INT);
             fprintf(f, "%d", INT);
             failure("Should not happen.");
             break;
+          }
 
           case 4: {
             const int offset = INT;
@@ -377,19 +435,30 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 7:
-            fprintf(f, "TAG\t%s ", STRING);
-            fprintf(f, "%d", INT);
+          case 7: {
+            char * tag = STRING;
+            const int len = INT;
+            fprintf(f, "TAG\t%s ", tag);
+            fprintf(f, "%d", len);
+            push(Btag((void *) pop(), LtagHash(tag), len));
             break;
+          }
 
-          case 8:
-            fprintf(f, "ARRAY\t%d", INT);
+          case 8: {
+            const int n = INT;
+            fprintf(f, "ARRAY\t%d", n);
+            push(Barray_patt((void*) pop, n));
             break;
+          }
 
-          case 9:
-            fprintf(f, "FAIL\t%d", INT);
-            fprintf(f, "%d", INT);
+          case 9: {
+            const int line = INT;
+            const int col = INT;
+            fprintf(f, "FAIL\t%d", line);
+            fprintf(f, "%d", col);
+            failure("Lama failure at (%d, %d)", line, col);
             break;
+          }
 
           case 10:
             fprintf(f, "LINE\t%d", INT);
@@ -402,29 +471,64 @@ void interpret(FILE *f, bytefile *bf) {
 
       case 6:
         fprintf(f, "PATT\t%s", pats[l]);
+        switch (l) {
+          case 0:
+            Bstring_patt((void *) pop(), (void *) pop());
+            break;
+          case 1:
+            Bstring_tag_patt((void *) pop());
+            break;
+
+          case 2:
+            Barray_tag_patt((void *) pop());
+            break;
+          case 3:
+            Bboxed_patt((void *) pop());
+            break;
+          case 4:
+            Bunboxed_patt((void *) pop());
+            break;
+          case 5:
+            Bclosure_tag_patt((void *) pop());
+            break;
+          default:
+            FAIL;
+        }
         break;
 
       case 7: {
         switch (l) {
           case 0:
             fprintf(f, "CALL\tLread");
+            push(Lread());
             break;
 
           case 1:
             fprintf(f, "CALL\tLwrite");
+            Lwrite(pop());
             break;
 
           case 2:
             fprintf(f, "CALL\tLlength");
+            push(Llength((void *) pop()));
             break;
 
           case 3:
             fprintf(f, "CALL\tLstring");
+            push((aint) Lstring(state.esp));
+            pop();
             break;
 
-          case 4:
-            fprintf(f, "CALL\tBarray\t%d", INT);
+          case 4: {
+            const int len = INT;
+            fprintf(f, "CALL\tBarray\t%d", len);
+            aint arr[len];
+            for (int i = 0; i < len; i++) {
+              arr[len - 1 - i] = pop();
+            }
+            Barray(arr, len);
             break;
+          }
 
           default:
             FAIL;

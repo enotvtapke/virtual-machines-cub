@@ -24,7 +24,7 @@ size_t cur_id = 0;
 
 static extra_roots_pool extra_roots;
 
-// size_t __gc_stack_top = 0, __gc_stack_bottom = 0;
+size_t __gc_stack_top = 0, __gc_stack_bottom = 0;
 #ifdef LAMA_ENV
 #ifdef __linux__
 extern const size_t __start_custom_data, __stop_custom_data;
