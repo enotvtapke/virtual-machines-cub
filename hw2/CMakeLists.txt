@@ -3,6 +3,10 @@ project(hw2 C)
 
 set(CMAKE_C_STANDARD 11)
 
+# Force 32-bit compilation
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -m32")
+
 # Add the runtime subdirectory
 add_subdirectory(runtime)
 

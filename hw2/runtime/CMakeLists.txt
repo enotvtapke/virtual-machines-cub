@@ -1,6 +1,9 @@
-# Detect architecture for macOS
+# Force 32-bit compilation
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -m32")
+
+# Detect architecture for macOS (use i386 for 32-bit instead of x86_64)
 if(APPLE)
-    set(ARCH_FLAGS "-arch x86_64")
+    set(ARCH_FLAGS "-arch i386")
 endif()
 
 # Common compiler flags
@@ -30,7 +33,7 @@ target_compile_options(runtime PRIVATE
 
 # Special handling for assembly file
 set_source_files_properties(printf.S PROPERTIES
-        COMPILE_FLAGS "-Wa,--noexecstack -x assembler-with-cpp -g"
+        COMPILE_FLAGS "-m32 -Wa,--noexecstack -x assembler-with-cpp -g"
 )
 
 # Set output name to match original (optional, as linking will work either way)
