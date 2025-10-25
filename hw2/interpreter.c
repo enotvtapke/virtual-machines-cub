@@ -36,12 +36,14 @@ static State state;
 static void push(const aint value) {
   --state.esp;
   *state.esp = value;
+  __gc_stack_top = (size_t) state.esp;
 }
 
 #define EMPTY BOX(0)
 
 static aint pop() {
   ++state.esp;
+  __gc_stack_top = (size_t) state.esp;
   return *(state.esp - 1);
 }
 
@@ -199,6 +201,7 @@ void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
   state.closure = NULL;
   state.esp = bf->stack_ptr;
+  __gc_stack_top = (size_t) state.esp;
   state.ebp = bf->stack_ptr;
   state.bf = bf;
   // state.call_stack = malloc(sizeof(Stack_frame) * CALL_STACK_SIZE);
@@ -229,7 +232,7 @@ void interpret(FILE *f, bytefile *bf) {
           case 0: {
             const aint value = INT;
             fprintf(f, "CONST\t%d", value);
-            push(value);
+            push(BOX(value));
             break;
           }
 
@@ -280,9 +283,11 @@ void interpret(FILE *f, bytefile *bf) {
           case 6:
           case 7: {
             fprintf(f, "END/RET");
+            if (state.ebp == bf->stack_ptr) break; // Exiting main function
             const aint res = pop();
             const int args_num = UNBOX(state.ebp - 1);
             state.esp = state.ebp;
+            __gc_stack_top = (size_t) state.esp;
             state.ebp = (aint *) pop();
             state.ip = (char *) pop();
             pop(); // Pop the closure pointer
@@ -330,7 +335,7 @@ void interpret(FILE *f, bytefile *bf) {
 
       case 2: {
         fprintf(f, "LD");
-        get_var(l, INT, h, l);
+        push(get_var(l, INT, h, l));
         break;
       }
       case 3: {
@@ -478,7 +483,6 @@ void interpret(FILE *f, bytefile *bf) {
           case 1:
             Bstring_tag_patt((void *) pop());
             break;
-
           case 2:
             Barray_tag_patt((void *) pop());
             break;
