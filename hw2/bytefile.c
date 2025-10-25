@@ -54,8 +54,10 @@ bytefile *read_file(char *fname) {
   file->public_ptr = (int *) file->buffer;
   file->code_ptr = &file->string_ptr[file->stringtab_size];
 
-  file->global_ptr = &((int *) malloc(sizeof(size_t) + file->global_area_size * sizeof(void *) + STACK_SIZE))[sizeof(size_t)];
-  file->stack_ptr = &file->global_ptr[file->global_area_size * sizeof(void *)];
+  aint * stack = malloc(sizeof(size_t) + file->global_area_size * sizeof(size_t) + STACK_SIZE * sizeof(aint));
+
+  file->global_ptr = &stack[STACK_SIZE];
+  file->stack_ptr = &stack[STACK_SIZE - 1];
 
   file->global_ptr = (int *) malloc(file->global_area_size * sizeof(void *));
 
