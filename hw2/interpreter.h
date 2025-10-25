@@ -6,7 +6,9 @@
 #define HW2_INTERPRETER_H
 
 #define STACK_SIZE 1048576
+#define CALL_STACK_SIZE 1048576
 #include "runtime_common.h"
+#include <stdio.h>
 
 typedef struct
 {

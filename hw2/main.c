@@ -18,10 +18,10 @@ int main(int argc, char *argv[]) {
   }
   bytefile *f = read_file(argv[1]);
   dump_file(stdout, f);
+  __gc_init();
   __gc_stack_bottom = (size_t) f->global_ptr + f->global_area_size * sizeof(size_t) + sizeof(size_t);
   __gc_stack_top = (size_t) f->global_ptr - STACK_SIZE * sizeof(aint);
-  __gc_init();
-  // interpret(stdout, f);
+  interpret(stdout, f);
   free(f);
   return 0;
 }

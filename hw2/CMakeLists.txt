@@ -13,7 +13,7 @@ add_subdirectory(runtime)
 add_executable(hw2 main.c
         bytefile.c
         interpreter.h
-        interpreter.cpp)
+        interpreter.c)
 #add_executable(byterun byterun.c)
 
 # Link the runtime library to your executable
