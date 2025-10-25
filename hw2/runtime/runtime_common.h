@@ -8,6 +8,8 @@
 //#define DEBUG_VERSION
 //#define FULL_INVARIANT_CHECKS
 
+extern size_t __gc_stack_top, __gc_stack_bottom;
+
 #if defined(__x86_64__) || defined(__ppc64__)
 #define X86_64
 #endif
