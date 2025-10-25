@@ -34,17 +34,42 @@ static State state;
 // };
 
 static void push(const aint value) {
-  *state.esp = value;
   --state.esp;
+  *state.esp = value;
 }
+
+#define EMPTY BOX(0)
 
 static aint pop() {
   ++state.esp;
   return *(state.esp - 1);
 }
 
-static void jump(const int offset) {
-  state.ip = state.bf->code_ptr + offset;
+static aint get_global(const int index) {
+  return state.bf->global_ptr[index];
+}
+
+static aint get_local(const int index) {
+  return *(state.ebp - 1 - index); // - 1 because we saved the number of args between ebp and locals
+}
+
+static aint get_arg(const int index) {
+  return *(state.ebp + 3 + index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
+}
+
+static data * safe_retrieve_closure(const aint closure_ptr) {
+  ASSERT_BOXED("CALLC", closure_ptr);
+  data * closure = TO_DATA(closure_ptr);
+  if (TAG(closure->data_header) != CLOSURE_TAG) {
+    failure("Expected closure, got %d", TAG(closure->data_header));
+  }
+  return closure;
+}
+
+static aint get_closure(const int index) {
+  const aint closure_ptr = *(state.ebp + 2);
+  const data * closure = safe_retrieve_closure(closure_ptr);
+  return ((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
 }
 
 // static int read_int() {
@@ -110,16 +135,30 @@ static void eval_binop(const char op) {
     default:
       failure("Unknown binop %d", op);
   }
-
 }
 
-/* Disassembles the bytecode pool */
-void interpret(FILE *f, bytefile *bf) {
 #define INT (state.ip += sizeof(int), *(int *)(state.ip - sizeof(int)))
 #define BYTE *(state.ip)++
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
+static aint get_var(const char designation, const int index, const char h, const char l) {
+  switch (designation) {
+    case 0:
+      return get_global(index);
+    case 1:
+      return get_local(index);
+    case 2:
+      return get_arg(index);
+    case 3:
+      return get_closure(index);
+    default:
+      FAIL;
+  }
+}
+
+/* Disassembles the bytecode pool */
+void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
   state.closure = NULL;
   state.esp = bf->stack_ptr;
@@ -201,14 +240,21 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 6: {
-            fprintf(f, "END");
+          case 6:
+          case 7: {
+            fprintf(f, "END/RET");
+            const aint res = pop();
+            const int args_num = UNBOX(state.ebp - 1);
+            state.esp = state.ebp;
+            state.ebp = (aint *) pop();
+            state.ip = (char *) pop();
+            pop(); // Pop the closure pointer
+            for (int i = 0; i < args_num; i++) {
+              pop();
+            }
+            push(res);
             break;
           }
-
-          case 7:
-            fprintf(f, "RET");
-            break;
 
           case 8:
             fprintf(f, "DROP");
@@ -263,54 +309,71 @@ void interpret(FILE *f, bytefile *bf) {
             fprintf(f, "CJMPnz\t0x%.8x", INT);
             break;
 
-          case 2:
-            fprintf(f, "BEGIN\t%d ", INT);
-            fprintf(f, "%d", INT);
+          case 2: {
+            const int args_num = INT;
+            const int locals_num = INT;
+            fprintf(f, "BEGIN\t%d ", args_num);
+            fprintf(f, "%d", locals_num);
+            push(BOX(args_num));
+            for (int i = 0; i < locals_num; i++) {
+              push(EMPTY);
+            }
             break;
+          }
 
           case 3:
             fprintf(f, "CBEGIN\t%d ", INT);
             fprintf(f, "%d", INT);
+            failure("Should not happen.");
             break;
 
-          case 4:
-            fprintf(f, "CLOSURE\t0x%.8x", INT);
-            {
-              int n = INT;
-              for (int i = 0; i < n; i++) {
-                switch (BYTE) {
-                  case 0:
-                    fprintf(f, "G(%d)", INT);
-                    break;
-                  case 1:
-                    fprintf(f, "L(%d)", INT);
-                    break;
-                  case 2:
-                    fprintf(f, "A(%d)", INT);
-                    break;
-                  case 3:
-                    fprintf(f, "C(%d)", INT);
-                    break;
-                  default:
-                    FAIL;
-                }
-              }
-            };
+          case 4: {
+            const int offset = INT;
+            fprintf(f, "CLOSURE\t0x%.8x", offset);
+            const int vars_num = INT;
+            aint args[vars_num + 1];
+            args[0] = offset;
+            for (int i = 1; i < vars_num + 1; i++) {
+              args[i] = get_var(BYTE, INT, h, l);
+            }
+            push((aint) Bclosure(args, BOX(vars_num)));
             break;
+          }
 
-          case 5:
-            fprintf(f, "CALLC\t%d", INT);
+          case 5: {
+            const int args_num = INT;
+            fprintf(f, "CALLC\t%d", args_num);
+
+            // Can be very slow
+            aint args[args_num];
+            for (int i = 0; i < args_num; i++) {
+              args[i] = pop();
+            }
+            const aint closure_ptr = pop();
+            for (int i = 0; i < args_num; i++) {
+              push(args[i]);
+            }
+            push(closure_ptr);
+            const data * closure = safe_retrieve_closure(closure_ptr);
+            // ====
+            const aint offset = ((aint *) closure->contents)[0];
+            push((aint) state.ip);
+            push((aint) state.ebp);
+            state.ebp = state.esp;
+            state.ip = state.bf->code_ptr + offset;
             break;
+          }
 
           case 6: {
             const int offset = INT;
             const int locals_num = INT;
             fprintf(f, "CALL\t0x%.8x ", offset);
             fprintf(f, "%d", locals_num);
-            push((aint) state.esp);
+            push(EMPTY); // Space for closure. Occupied in CALLC
+            push((aint) state.ip);
             push((aint) state.ebp);
             state.ebp = state.esp;
-            jump(offset);
+            state.ip = state.bf->code_ptr + offset;
             break;
           }
 
