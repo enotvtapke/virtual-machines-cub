@@ -17,7 +17,7 @@
 //   aint* ebp;
 // } Stack_frame;
 
-// #define DEBUG_PRINT
+#define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
 #define DEBUG_LOG(...) fprintf(stdout, __VA_ARGS__)
@@ -42,7 +42,7 @@ static State state;
 // };
 
 static void push(const aint value) {
-  DEBUG_LOG("\nPUSH %d", value);
+  // DEBUG_LOG("\nPUSH %d", value);
   --state.esp;
   *state.esp = value;
   __gc_stack_top = (size_t) state.esp;
@@ -51,7 +51,7 @@ static void push(const aint value) {
 #define EMPTY BOX(0)
 
 static aint pop() {
-  DEBUG_LOG("\nPOP");
+  // DEBUG_LOG("\nPOP");
   // if (state.esp >= state.ebp - 1) {
   //   failure("Stack underflow");
   // }
@@ -72,7 +72,7 @@ static void set_global(const int index, const aint value) {
 }
 
 static aint get_local(const int index) {
-  return *(state.ebp - 2 - index); // - 2 because we saved the number of args between ebp and locals
+  return *(state.ebp - 2 - index); // -K 2 because we saved the number of args between ebp and locals
 }
 
 static void set_local(const int index, const aint value) {

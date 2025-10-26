@@ -1,12 +1,3 @@
-var x;
-
-fun print(x) {
-  var i;
-  for i := 0, i<x.length, i:=i+1 do
-      write (x[i])
-  od
-}
-
-x := [1, 2];
-
-print(x)
+case A (1) of
+  A (x) -> write(1)
+esac
