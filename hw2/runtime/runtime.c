@@ -111,6 +111,7 @@ aint Ls__Infix_3838 (void *p, void *q) {
   ASSERT_UNBOXED("captured &&:1", p);
   ASSERT_UNBOXED("captured &&:2", q);
 
+  // fprintf(stdout, "\nAND!!!!: %d, %d\n", UNBOX(p), UNBOX(q));
   return BOX(UNBOX(p) && UNBOX(q));
 }
 
@@ -122,6 +123,7 @@ aint Ls__Infix_3361 (void *p, void *q) {
   ASSERT_UNBOXED("captured !=:1", p);
   ASSERT_UNBOXED("captured !=:2", q);
 
+  fflush(stdout);
   return BOX(UNBOX(p) != UNBOX(q));
 }
 
@@ -129,7 +131,8 @@ aint Ls__Infix_3361 (void *p, void *q) {
 aint Ls__Infix_6061 (void *p, void *q) {
   ASSERT_UNBOXED("captured <=:1", p);
   ASSERT_UNBOXED("captured <=:2", q);
-
+  // fprintf(stdout, "\n!!!!: %d, %d\n", UNBOX(p), UNBOX(q));
+  // fflush(stdout);
   return BOX(UNBOX(p) <= UNBOX(q));
 }
 
@@ -197,6 +200,7 @@ aint Ls__Infix_37 (void *p, void *q) {
   ASSERT_UNBOXED("captured %:1", p);
   ASSERT_UNBOXED("captured %:2", q);
 
+  // fprintf(stdout, "\n!!!!MOD: %d, %d, %d\n", UNBOX(p), UNBOX(q), UNBOX(p) % UNBOX(q));
   return BOX(UNBOX(p) % UNBOX(q));
 }
 

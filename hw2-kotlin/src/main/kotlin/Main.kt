@@ -8,11 +8,11 @@ import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 
 fun main() {
-    test("test*.lama")
-    val time = System.currentTimeMillis()
-    test("Sort.lama")
-    val duration = System.currentTimeMillis() - time
-    println("Total time for sort: ${duration / 1000.0} seconds")
+    test("test046.lama")
+//    val time = System.currentTimeMillis()
+//    test("Sort.lama")
+//    val duration = System.currentTimeMillis() - time
+//    println("Total time for sort: ${duration / 1000.0} seconds")
 }
 
 private fun test(pattern: String, printDecompiled: Boolean = false) {

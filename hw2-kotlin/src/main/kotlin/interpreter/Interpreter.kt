@@ -33,6 +33,7 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
     fun interpret(): Unit? {
         val instruction = bytecode.next()
         if (instruction == null) return null
+        println("${bytecode.offset()}: $instruction")
         fun error(message: String): Nothing {
             error(instruction, message)
         }
@@ -227,7 +228,10 @@ class Interpreter(private val bytecode: Bytecode, input: List<Int>) {
             Operation.DIV -> { x, y -> x / y }
             Operation.MOD -> { x, y -> x % y }
             Operation.LT -> { x, y -> (x < y).toInt() }
-            Operation.LTE -> { x, y -> (x <= y).toInt() }
+            Operation.LTE -> { x, y ->
+                println("!!!!: $x, $y")
+                (x <= y).toInt()
+            }
             Operation.GT -> { x, y -> (x > y).toInt() }
             Operation.GTE -> { x, y -> (x >= y).toInt() }
             Operation.EQ -> { x, y -> (x == y).toInt() }

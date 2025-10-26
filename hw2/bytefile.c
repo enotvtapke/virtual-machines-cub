@@ -36,7 +36,7 @@ bytefile *read_file(char *fname) {
     failure("%s\n", strerror(errno));
   }
 
-  file = (bytefile *) malloc(sizeof(void *) * 4 + (size = ftell(f)));
+  file = (bytefile *) malloc(sizeof(void *) * 5 + (size = ftell(f)));
 
   if (file == 0) {
     failure("*** FAILURE: unable to allocate memory.\n");

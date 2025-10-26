@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
     exit(1);
   }
 
-  printf("Interpreting %s\n", argv[1]);
+  printf("\n\nInterpreting %s\n", argv[1]);
 
   // Redirect stdin to the input file
   if (freopen(argv[2], "r", stdin) == NULL) {
