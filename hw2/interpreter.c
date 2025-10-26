@@ -162,33 +162,41 @@ static void eval_binop(const char op) {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
-static aint get_var(const char designation, const int index, const char h, const char l) {
+static aint get_var(FILE *f, const char designation, const int index, const char h, const char l) {
   switch (designation) {
     case 0:
+      fprintf(f, "G(%d)", index);
       return get_global(index);
     case 1:
+      fprintf(f, "L(%d)", index);
       return get_local(index);
     case 2:
+      fprintf(f, "A(%d)", index);
       return get_arg(index);
     case 3:
+      fprintf(f, "C(%d)", index);
       return get_closure(index);
     default:
       FAIL;
   }
 }
 
-static void set_var(const char designation, const int index, const aint value, const char h, const char l) {
+static void set_var(FILE *f, const char designation, const int index, const aint value, const char h, const char l) {
   switch (designation) {
     case 0:
+      fprintf(f, "G(%d)", index);
       set_global(index, value);
       break;
     case 1:
+      fprintf(f, "L(%d)", index);
       set_local(index, value);
       break;
     case 2:
+      fprintf(f, "A(%d)", index);
       set_arg(index, value);
       break;
     case 3:
+      fprintf(f, "C(%d)", index);
       set_closure(index, value);
       break;
     default:
@@ -334,18 +342,18 @@ void interpret(FILE *f, bytefile *bf) {
         break;
 
       case 2: {
-        fprintf(f, "LD");
-        push(get_var(l, INT, h, l));
+        fprintf(f, "LD\t");
+        push(get_var(f, l, INT, h, l));
         break;
       }
       case 3: {
-        fprintf(f, "LDA");
+        fprintf(f, "LDA\t");
         failure("Should not happen. Indirect assignments are temporarily prohibited.");
         break;
       }
       case 4: {
-        fprintf(f, "ST");
-        set_var(l, INT, *state.esp, h, l);
+        fprintf(f, "ST\t");
+        set_var(f, l, INT, *state.esp, h, l);
         break;
       }
 
@@ -371,7 +379,8 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 2: {
+          case 2:
+          case 3: {
             const int args_num = INT;
             const int locals_num = INT;
             fprintf(f, "BEGIN\t%d ", args_num);
@@ -383,12 +392,12 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 3: {
-            fprintf(f, "CBEGIN\t%d ", INT);
-            fprintf(f, "%d", INT);
-            failure("Should not happen.");
-            break;
-          }
+          // case 3: {
+          //   fprintf(f, "CBEGIN\t%d ", INT);
+          //   fprintf(f, "%d", INT);
+          //   failure("Should not happen.");
+          //   break;
+          // }
 
           case 4: {
             const int offset = INT;
@@ -397,7 +406,9 @@ void interpret(FILE *f, bytefile *bf) {
             aint args[vars_num + 1];
             args[0] = offset;
             for (int i = 1; i < vars_num + 1; i++) {
-              args[i] = get_var(BYTE, INT, h, l);
+              char a = BYTE;
+              char b = INT;
+              args[i] = get_var(f, a, b, h, l);
             }
             push((aint) Bclosure(args, BOX(vars_num)));
             break;
