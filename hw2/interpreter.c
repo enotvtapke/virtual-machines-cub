@@ -133,8 +133,14 @@ inline static void set_closure(const int index, const aint value) {
   ((aint *) closure->contents)[1 + index] = value;
 }
 
-#define INT (state.ip += sizeof(int), *(int *)(state.ip - sizeof(int)))
-#define BYTE *(state.ip)++
+inline static void check_code_size() {
+  if (state.ip >= state.bf->code_ptr + state.bf->code_size) {
+    failure("Reached end of code section");
+  }
+}
+
+#define INT (check_code_size(), state.ip += sizeof(int), *(int *)(state.ip - sizeof(int)))
+#define BYTE (check_code_size(), *(state.ip)++)
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 

@@ -26,7 +26,6 @@ int get_public_offset(bytefile *f, int i) {
 bytefile *read_file(char *fname) {
   FILE *f = fopen(fname, "rb");
   long size;
-  bytefile *file;
 
   if (f == 0) {
     failure("%s\n", strerror(errno));
@@ -36,7 +35,7 @@ bytefile *read_file(char *fname) {
     failure("%s\n", strerror(errno));
   }
 
-  file = (bytefile *) malloc(sizeof(void *) * 5 + (size = ftell(f)));
+  bytefile *file = malloc(sizeof(void *) * 5 + sizeof(long) + (size = ftell(f)));
 
   if (file == 0) {
     failure("*** FAILURE: unable to allocate memory.\n");
@@ -53,6 +52,7 @@ bytefile *read_file(char *fname) {
   file->string_ptr = &file->buffer[file->public_symbols_number * 2 * sizeof(int)];
   file->public_ptr = (int *) file->buffer;
   file->code_ptr = &file->string_ptr[file->stringtab_size];
+  file->code_size = size;
 
   aint * stack = malloc(sizeof(size_t) + file->global_area_size * sizeof(size_t) + STACK_SIZE * sizeof(aint));
 
