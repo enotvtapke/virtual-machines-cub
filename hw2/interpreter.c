@@ -53,7 +53,7 @@ static void dump_stack() {
 
 inline static void push(const aint value) {
   if (ESP <= state.bf->stack_ptr - STACK_SIZE) {
-    failure("Stack overflow");
+    failure("Stack overflow\n");
   }
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
@@ -65,10 +65,10 @@ inline static aint get_locals_num() {
 
 inline static aint pop() {
   if (ESP >= state.ebp - 3 - (get_locals_num() - 1)) {
-    failure("Popping values from stack frame (locals or worse)");
+    failure("Popping values from stack frame (locals or worse)\n");
   }
-  if (ESP >= state.bf->stack_ptr) { // TODO I could check popping locals if I saved the number of locals
-    failure("Stack underflow");
+  if (ESP >= state.bf->stack_ptr) {
+    failure("Stack underflow\n");
   }
   __gc_stack_top += sizeof(size_t);
   return *(ESP - 1);
@@ -76,28 +76,28 @@ inline static aint pop() {
 
 inline static aint get_global(const int index) {
   if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds. Number of globals %d", index, state.bf->global_area_size);
+    failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
   }
   return state.bf->global_ptr[index];
 }
 
 inline static void set_global(const int index, const aint value) {
   if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds. Number of globals %d", index, state.bf->global_area_size);
+    failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
   }
   state.bf->global_ptr[index] = value;
 }
 
 inline static aint get_local(const int index) {
   if (index >= get_locals_num()) {
-    failure("Local variable %d out of bounds. Number of locals %d", index, get_locals_num());
+    failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
   }
   return *(state.ebp - 3 - index); // - 2 because we saved the number of args between ebp and locals
 }
 
 inline static void set_local(const int index, const aint value) {
   if (index >= get_locals_num()) {
-    failure("Local variable %d out of bounds. Number of locals %d", index, get_locals_num());
+    failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
   }
   *(state.ebp - 3 - index) = value;
 }
@@ -116,7 +116,7 @@ inline static data * safe_retrieve_closure(const aint closure_ptr) {
   ASSERT_BOXED("CALLC", closure_ptr);
   data * closure = TO_DATA(closure_ptr);
   if (TAG(closure->data_header) != CLOSURE_TAG) {
-    failure("Expected closure, got %d tag", TAG(closure->data_header));
+    failure("Expected closure, got %d tag\n", TAG(closure->data_header));
   }
   return closure;
 }
@@ -134,8 +134,8 @@ inline static void set_closure(const int index, const aint value) {
 }
 
 inline static void check_code_size() {
-  if (state.ip >= state.bf->code_ptr + state.bf->code_size) {
-    failure("Reached end of code section");
+  if (state.ip < state.bf->code_ptr || state.ip >= state.bf->code_ptr + state.bf->code_size) {
+    failure("ip counter is outside of code section\n");
   }
 }
 
@@ -247,7 +247,7 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 3: {
             DEBUG_LOG("STI");
-            failure("Should not happen. Indirect assignments are temporarily prohibited.");
+            failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
             break;
           }
 
@@ -326,7 +326,7 @@ void interpret(FILE *f, bytefile *bf) {
       }
       case 3: {
         DEBUG_LOG("LDA\t");
-        failure("Should not happen. Indirect assignments are temporarily prohibited.");
+        failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
         break;
       }
       case 4: {
@@ -344,6 +344,7 @@ void interpret(FILE *f, bytefile *bf) {
             const aint value = UNBOX(pop());
             if (value == 0) {
               state.ip = bf->code_ptr + offset;
+              check_code_size();
             }
             break;
           }
@@ -354,6 +355,7 @@ void interpret(FILE *f, bytefile *bf) {
             const aint value = UNBOX(pop());
             if (value != 0) {
               state.ip = bf->code_ptr + offset;
+              check_code_size();
             }
             break;
           }
@@ -443,7 +445,7 @@ void interpret(FILE *f, bytefile *bf) {
             const int col = INT;
             DEBUG_LOG("FAIL\t%d", line);
             DEBUG_LOG("%d", col);
-            failure("Lama failure at (%d, %d)", line, col);
+            failure("Lama failure at (%d, %d)\n", line, col);
             break;
           }
 
@@ -586,7 +588,7 @@ inline static void eval_binop(const char op) {
       push(Ls__Infix_3333(a, b));
       break;
     default:
-      failure("Unknown binop %d", op);
+      failure("Unknown binop %d\n", op);
   }
   DEBUG_LOG("\nBinop res: %d", UNBOX(*ESP));
 }
