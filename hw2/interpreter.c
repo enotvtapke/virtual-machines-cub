@@ -195,8 +195,8 @@ void interpret(FILE *f, bytefile *bf) {
   state.bf = bf;
 
   #ifdef DEBUG_PRINT
-  char *ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
-  char *pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
+  static const char* const ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
+  static const char* const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
   #endif
   do {
     const char x = BYTE, h = (x & 0xF0) >> 4, l = x & 0x0F;
