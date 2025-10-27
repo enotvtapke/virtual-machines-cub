@@ -59,7 +59,14 @@ inline static void push(const aint value) {
   *ESP = value;
 }
 
+inline static aint get_locals_num() {
+  return UNBOX(*(state.ebp - 2));
+}
+
 inline static aint pop() {
+  if (ESP >= state.ebp - 3 - (get_locals_num() - 1)) {
+    failure("Popping values from stack frame (locals or worse)");
+  }
   if (ESP >= state.bf->stack_ptr) { // TODO I could check popping locals if I saved the number of locals
     failure("Stack underflow");
   }
@@ -69,24 +76,30 @@ inline static aint pop() {
 
 inline static aint get_global(const int index) {
   if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds", index);
+    failure("Global variable %d out of bounds. Number of globals %d", index, state.bf->global_area_size);
   }
   return state.bf->global_ptr[index];
 }
 
 inline static void set_global(const int index, const aint value) {
   if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds", index);
+    failure("Global variable %d out of bounds. Number of globals %d", index, state.bf->global_area_size);
   }
   state.bf->global_ptr[index] = value;
 }
 
 inline static aint get_local(const int index) {
-  return *(state.ebp - 2 - index); // - 2 because we saved the number of args between ebp and locals
+  if (index >= get_locals_num()) {
+    failure("Local variable %d out of bounds. Number of locals %d", index, get_locals_num());
+  }
+  return *(state.ebp - 3 - index); // - 2 because we saved the number of args between ebp and locals
 }
 
 inline static void set_local(const int index, const aint value) {
-  *(state.ebp - 2 - index) = value;
+  if (index >= get_locals_num()) {
+    failure("Local variable %d out of bounds. Number of locals %d", index, get_locals_num());
+  }
+  *(state.ebp - 3 - index) = value;
 }
 
 inline static aint get_arg(const int index) {
@@ -346,6 +359,7 @@ void interpret(FILE *f, bytefile *bf) {
             DEBUG_LOG("BEGIN\t%d ", args_num);
             DEBUG_LOG("%d", locals_num);
             push(BOX(args_num));
+            push(BOX(locals_num));
             for (int i = 0; i < locals_num; i++) {
               push(EMPTY);
             }
