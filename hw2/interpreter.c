@@ -8,60 +8,29 @@
 #include <stdlib.h>
 
 #include "interpreter.h"
-// #include "./runtime/runtime.h"
 #include "./runtime/runtime.c"
 
-// typedef struct {
-//   int locals_num;
-//   aint* est;
-//   aint* ebp;
-// } Stack_frame;
-
-// #define DEBUG_PRINT
-
-#ifdef DEBUG_PRINT
-#define DEBUG_LOG(...) fprintf(stdout, __VA_ARGS__)
-#else
-#define DEBUG_LOG(...) (0)
-#endif
+#define EMPTY BOX(0)
 
 typedef struct {
   char *ip;
-  aint **closure; // Pointer to the current closure in heap. Is null when interpreting top level function or code
   aint *esp;
   aint *ebp;
-  bytefile * bf;
-  // Stack_frame *call_stack;
-  // Stack_frame *frame_pointer;
+  bytefile *bf;
 } State;
 
 static State state;
 
-// static void push_frame(Stack_frame frame) {
-//   state.call_stack
-// };
-
-static void push(const aint value) {
-  // DEBUG_LOG("\nPUSH %d", value);
-  --state.esp;
-  *state.esp = value;
-  __gc_stack_top = (size_t) (state.esp - 1);
-}
-
-#define EMPTY BOX(0)
-
-// #define STRING_TAG 0x00000001
-// #define ARRAY_TAG 0x00000003
-// #define SEXP_TAG 0x00000005
-// #define CLOSURE_TAG 0x00000007
-
-void print_stack_value(const aint v) {
+static void print_stack_value(const aint v) {
   if (UNBOXED(v)) {
     DEBUG_LOG("%d", UNBOX(v));
   } else {
-    // DEBUG_LOG("%d pointer", v);
     data * d = TO_DATA(v);
     size_t l = LEN(d->data_header);
+    // STRING_TAG 0x00000001
+    // ARRAY_TAG 0x00000003
+    // SEXP_TAG 0x00000005
+    // CLOSURE_TAG 0x00000007
     DEBUG_LOG("%d: tag %d, len %d", v, TAG(d->data_header), l);
   }
 }
@@ -81,17 +50,16 @@ static void dump_stack() {
   fflush(stdout);
 }
 
+static void push(const aint value) {
+  --state.esp;
+  *state.esp = value;
+  __gc_stack_top = (size_t) (state.esp - 1);
+}
+
 static aint pop() {
-  // DEBUG_LOG("\nPOP");
-  // if (state.esp >= state.ebp - 1) {
-  //   failure("Stack underflow");
-  // }
-  if (state.esp == state.bf->stack_ptr) {
+  if (state.esp == state.bf->stack_ptr) { // TODO I could check popping locals is I saved the number of locals
     failure("Stack underflow");
   }
-  // if (state.esp >= state.ebp - 2) {
-  //   DEBUG_LOG("\nMAYBE POPPING LOCAL 0");
-  // }
   ++state.esp;
   __gc_stack_top = (size_t) (state.esp - 1);
   return *(state.esp - 1);
@@ -106,7 +74,7 @@ static void set_global(const int index, const aint value) {
 }
 
 static aint get_local(const int index) {
-  return *(state.ebp - 2 - index); // -K 2 because we saved the number of args between ebp and locals
+  return *(state.ebp - 2 - index); // - 2 because we saved the number of args between ebp and locals
 }
 
 static void set_local(const int index, const aint value) {
@@ -114,7 +82,7 @@ static void set_local(const int index, const aint value) {
 }
 
 static aint get_arg(const int index) {
-  const aint num_args = UNBOX(*(state.ebp - 1)); // TODO maybe slow args in wrong order
+  const aint num_args = UNBOX(*(state.ebp - 1)); // TODO maybe slow because args in wrong order
   return *(state.ebp + 3 + num_args - 1 - index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
@@ -142,73 +110,6 @@ static void set_closure(const int index, const aint value) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
   ((aint *) closure->contents)[1 + index] = value;
-}
-
-// static int read_int() {
-//   state.ip += sizeof(int);
-//   return *(int *)(state.ip - sizeof(int));
-// }
-//
-// static int read_byte() {
-//   return *state.ip++;
-// }
-//
-// static char* read_string() {
-//   return get_string(state.bf, read_int());
-// }
-
-enum Binop {
-  ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, OR
-};
-
-static void eval_binop(const char op) {
-  void * b = (void*) pop();
-  void * a = (void*) pop();
-  DEBUG_LOG("\nBinop with args: %d, %d", UNBOX(a), UNBOX(b));
-  switch (op) {
-    case ADD:
-      push(Ls__Infix_43(a, b));
-      break;
-    case SUB:
-      push(Ls__Infix_45(a, b));
-      break;
-    case MUL:
-      push(Ls__Infix_42(a, b));
-      break;
-    case DIV:
-      push(Ls__Infix_47(a, b));
-      break;
-    case MOD:
-      push(Ls__Infix_37(a, b));
-      break;
-    case LT:
-      push(Ls__Infix_60(a, b));
-      break;
-    case LTE:
-      push(Ls__Infix_6061(a, b));
-      break;
-    case GT:
-      push(Ls__Infix_62(a, b));
-      break;
-    case GTE:
-      push(Ls__Infix_6261(a, b));
-      break;
-    case EQ:
-      push(Ls__Infix_6161(a, b));
-      break;
-    case NEQ:
-      push(Ls__Infix_3361(a, b));
-      break;
-    case AND:
-      push(Ls__Infix_3838(a, b));
-      break;
-    case OR:
-      push(Ls__Infix_3333(a, b));
-      break;
-    default:
-      failure("Unknown binop %d", op);
-  }
-  DEBUG_LOG("\nBinop res: %d", UNBOX(*state.esp));
 }
 
 #define INT (state.ip += sizeof(int), *(int *)(state.ip - sizeof(int)))
@@ -258,29 +159,25 @@ static void set_var(FILE *f, const char designation, const int index, const aint
   }
 }
 
+static void eval_binop(char op);
+
 /* Disassembles the bytecode pool */
 void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
-  state.closure = NULL;
   state.esp = bf->stack_ptr;
-  __gc_stack_top = (size_t) (state.esp - 1);
   state.ebp = bf->stack_ptr;
   state.bf = bf;
-  // state.call_stack = malloc(sizeof(Stack_frame) * CALL_STACK_SIZE);
 
-  // char *ip = state.bf->code_ptr;
+  #ifdef DEBUG_PRINT
   char *ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
   char *pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
-  char *lds[] = {"LD", "LDA", "ST"};
+  #endif
   do {
-    char x = BYTE,
-        h = (x & 0xF0) >> 4,
-        l = x & 0x0F;
+    const char x = BYTE, h = (x & 0xF0) >> 4, l = x & 0x0F;
     #ifdef DEBUG_PRINT
       dump_stack();
     #endif
     DEBUG_LOG("0x%.8x:\t", state.ip - state.bf->code_ptr - 1);
-    // DEBUG_LOG("%d ", get_local(0));
     switch (h) {
       case 15:
         goto stop;
@@ -288,7 +185,6 @@ void interpret(FILE *f, bytefile *bf) {
       /* BINOP */
       case 0:
         DEBUG_LOG("BINOP\t%s", ops[l - 1]);
-        ops[l - 1];
         eval_binop(l - 1);
         break;
 
@@ -310,10 +206,10 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 2: {
             char * tag = STRING;
-            int n = INT;
+            const int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
 
-            aint args[n + 1]; // I could not use args if the stack grew upwards
+            aint args[n + 1]; // TODO I could not reverse args if the stack grew upwards
             for (int i = 0; i < n; i++) {
               args[n - i - 1] = pop();
             }
@@ -348,18 +244,14 @@ void interpret(FILE *f, bytefile *bf) {
           case 6:
           case 7: {
             DEBUG_LOG("END/RET");
-            if (state.ebp == bf->stack_ptr) goto stop; // Exiting main function
-            const aint res = pop();
+            if (state.ebp == bf->stack_ptr) goto stop; // Exiting the main function
+            const aint return_value = pop();
             const int args_num = UNBOX(*(state.ebp - 1));
-            state.esp = state.ebp;
-            state.ebp = (aint *) pop();
-            state.ip = (char *) pop();
-            pop(); // Pop the closure pointer
-            for (int i = 0; i < args_num; i++) {
-              pop();
-            }
-            push(res);
-            __gc_stack_top = (size_t) (state.esp - 1);
+            aint * old_ebp = (aint *) *state.ebp;
+            state.ip = (char *) *(state.ebp + 1);
+            state.esp = state.ebp + 3 + args_num; // Pop return address, base pointer of parent function, closure and args
+            state.ebp = old_ebp;
+            push(return_value);
             break;
           }
 
@@ -401,9 +293,9 @@ void interpret(FILE *f, bytefile *bf) {
       case 2: {
         DEBUG_LOG("LD\t");
         const int index = INT;
-        const aint v = get_var(f, l, index, h, l);
-        DEBUG_LOG("=%d", v);
-        push(v);
+        const aint value = get_var(f, l, index, h, l);
+        DEBUG_LOG("=%d", value);
+        push(value);
         break;
       }
       case 3: {
@@ -453,23 +345,16 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          // case 3: {
-          //   DEBUG_LOG("CBEGIN\t%d ", INT);
-          //   DEBUG_LOG("%d", INT);
-          //   failure("Should not happen.");
-          //   break;
-          // }
-
           case 4: {
             const int offset = INT;
-            DEBUG_LOG("CLOSURE\t0x%.8x", offset);
             const int vars_num = INT;
+            DEBUG_LOG("CLOSURE\t0x%.8x\t%d", offset, vars_num);
             aint args[vars_num + 1];
             args[0] = offset;
             for (int i = 1; i < vars_num + 1; i++) {
-              char a = BYTE;
-              char b = INT;
-              args[i] = get_var(f, a, b, h, l);
+              const char designation = BYTE;
+              const char index = INT;
+              args[i] = get_var(f, designation, index, h, l);
             }
             push((aint) Bclosure(args, BOX(vars_num)));
             break;
@@ -479,7 +364,7 @@ void interpret(FILE *f, bytefile *bf) {
             const int args_num = INT;
             DEBUG_LOG("CALLC\t%d", args_num);
 
-            // Can be very slow
+            // TODO Can be slow. It is better to store the closure as the last argument, not first
             aint args[args_num];
             for (int i = 0; i < args_num; i++) {
               args[i] = pop();
@@ -502,9 +387,8 @@ void interpret(FILE *f, bytefile *bf) {
           case 6: {
             const int offset = INT;
             const int locals_num = INT;
-            DEBUG_LOG("CALL\t0x%.8x ", offset);
-            DEBUG_LOG("%d", locals_num);
-            push(EMPTY); // Space for closure. Occupied in CALLC
+            DEBUG_LOG("CALL\t0x%.8x %d", offset, locals_num);
+            push(EMPTY); // Space for closure. Not empty in CALLC
             push((aint) state.ip);
             push((aint) state.ebp);
             state.ebp = state.esp;
@@ -515,10 +399,8 @@ void interpret(FILE *f, bytefile *bf) {
           case 7: {
             char * tag = STRING;
             const int len = INT;
-            DEBUG_LOG("TAG\t%s ", tag);
-            DEBUG_LOG("%d", len);
-            aint sexp = pop();
-            push(Btag((void *) sexp, LtagHash(tag), BOX(len)));
+            DEBUG_LOG("TAG\t%s %d", tag, len);
+            push(Btag((void *) pop(), LtagHash(tag), BOX(len)));
             break;
           }
 
@@ -592,8 +474,7 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 2: {
             DEBUG_LOG("CALL\tLlength");
-            aint v = Llength((void *) pop());
-            push(v);
+            push(Llength((void *) pop()));
             break;
           }
 
@@ -604,7 +485,7 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 4: {
             const int len = INT;
-            DEBUG_LOG("CALL\tBarray\t%d", len);
+            DEBUG_LOG("CALL\tBarray %d", len);
             aint arr[len];
             for (int i = 0; i < len; i++) {
               arr[len - 1 - i] = pop();
@@ -626,5 +507,59 @@ void interpret(FILE *f, bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  fprintf(f, "<endi>\n");
+  fprintf(f, "<done>\n");
+}
+
+enum Binop {
+  ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, OR
+};
+
+static void eval_binop(const char op) {
+  void *b = (void *) pop();
+  void *a = (void *) pop();
+  DEBUG_LOG("\nBinop with args: %d, %d", UNBOX(a), UNBOX(b));
+  switch (op) {
+    case ADD:
+      push(Ls__Infix_43(a, b));
+      break;
+    case SUB:
+      push(Ls__Infix_45(a, b));
+      break;
+    case MUL:
+      push(Ls__Infix_42(a, b));
+      break;
+    case DIV:
+      push(Ls__Infix_47(a, b));
+      break;
+    case MOD:
+      push(Ls__Infix_37(a, b));
+      break;
+    case LT:
+      push(Ls__Infix_60(a, b));
+      break;
+    case LTE:
+      push(Ls__Infix_6061(a, b));
+      break;
+    case GT:
+      push(Ls__Infix_62(a, b));
+      break;
+    case GTE:
+      push(Ls__Infix_6261(a, b));
+      break;
+    case EQ:
+      push(Ls__Infix_6161(a, b));
+      break;
+    case NEQ:
+      push(Ls__Infix_3361(a, b));
+      break;
+    case AND:
+      push(Ls__Infix_3838(a, b));
+      break;
+    case OR:
+      push(Ls__Infix_3333(a, b));
+      break;
+    default:
+      failure("Unknown binop %d", op);
+  }
+  DEBUG_LOG("\nBinop res: %d", UNBOX(*state.esp));
 }

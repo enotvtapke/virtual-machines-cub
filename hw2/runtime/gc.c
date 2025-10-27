@@ -298,7 +298,7 @@ void compact_phase (size_t additional_size) {
   physically_relocate(&old_heap);
 
   heap.current = heap.begin + live_size;
-  if (munmap(old_heap.begin, old_heap.size) < 0) {
+  if (munmap(old_heap.begin, WORDS_TO_BYTES(old_heap.size)) < 0) {
       perror("ERROR: compact_phase: munmap failed\n");
       exit(1);
   }
