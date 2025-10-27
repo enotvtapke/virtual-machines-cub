@@ -51,48 +51,46 @@ static void dump_stack() {
   fflush(stdout);
 }
 
-static void push(const aint value) {
+inline static void push(const aint value) {
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
-  __gc_stack_top = (size_t) (ESP - 1);
 }
 
-static aint pop() {
+inline static aint pop() {
   if (ESP == state.bf->stack_ptr) { // TODO I could check popping locals is I saved the number of locals
     failure("Stack underflow");
   }
   __gc_stack_top += sizeof(size_t);
-  __gc_stack_top = (size_t) (ESP - 1);
   return *(ESP - 1);
 }
 
-static aint get_global(const int index) {
+inline static aint get_global(const int index) {
   return state.bf->global_ptr[index];
 }
 
-static void set_global(const int index, const aint value) {
+inline static void set_global(const int index, const aint value) {
   state.bf->global_ptr[index] = value;
 }
 
-static aint get_local(const int index) {
+inline static aint get_local(const int index) {
   return *(state.ebp - 2 - index); // - 2 because we saved the number of args between ebp and locals
 }
 
-static void set_local(const int index, const aint value) {
+inline static void set_local(const int index, const aint value) {
   *(state.ebp - 2 - index) = value;
 }
 
-static aint get_arg(const int index) {
+inline static aint get_arg(const int index) {
   const aint num_args = UNBOX(*(state.ebp - 1)); // TODO maybe slow because args in wrong order
   return *(state.ebp + 3 + num_args - 1 - index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
-static void set_arg(const int index, const aint value) {
+inline static void set_arg(const int index, const aint value) {
   const aint num_args = UNBOX(*(state.ebp - 1));
   *(state.ebp + 3 + num_args - 1 - index) = value;
 }
 
-static data * safe_retrieve_closure(const aint closure_ptr) {
+inline static data * safe_retrieve_closure(const aint closure_ptr) {
   ASSERT_BOXED("CALLC", closure_ptr);
   data * closure = TO_DATA(closure_ptr);
   if (TAG(closure->data_header) != CLOSURE_TAG) {
@@ -101,13 +99,13 @@ static data * safe_retrieve_closure(const aint closure_ptr) {
   return closure;
 }
 
-static aint get_closure(const int index) {
+inline static aint get_closure(const int index) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
   return ((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
 }
 
-static void set_closure(const int index, const aint value) {
+inline static void set_closure(const int index, const aint value) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
   ((aint *) closure->contents)[1 + index] = value;
@@ -118,7 +116,7 @@ static void set_closure(const int index, const aint value) {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
-static aint get_var(FILE *f, const char designation, const int index, const char h, const char l) {
+inline static aint get_var(FILE *f, const char designation, const int index, const char h, const char l) {
   switch (designation) {
     case 0:
       DEBUG_LOG("G(%d)", index);
@@ -137,7 +135,7 @@ static aint get_var(FILE *f, const char designation, const int index, const char
   }
 }
 
-static void set_var(FILE *f, const char designation, const int index, const aint value, const char h, const char l) {
+inline static void set_var(FILE *f, const char designation, const int index, const aint value, const char h, const char l) {
   switch (designation) {
     case 0:
       DEBUG_LOG("G(%d)=%d", index, value);
@@ -160,7 +158,7 @@ static void set_var(FILE *f, const char designation, const int index, const aint
   }
 }
 
-static void eval_binop(char op);
+inline static void eval_binop(char op);
 
 /* Disassembles the bytecode pool */
 void interpret(FILE *f, bytefile *bf) {
@@ -514,7 +512,7 @@ enum Binop {
   ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, OR
 };
 
-static void eval_binop(const char op) {
+inline static void eval_binop(const char op) {
   void *b = (void *) pop();
   void *a = (void *) pop();
   DEBUG_LOG("\nBinop with args: %d, %d", UNBOX(a), UNBOX(b));
