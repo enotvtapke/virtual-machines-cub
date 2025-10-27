@@ -18,7 +18,7 @@ void interpret_file(char * filename) {
   fprintf(stdout, "\n");
   __gc_init();
   __gc_stack_bottom = (size_t) (f->global_ptr + f->global_area_size + 1);
-  __gc_stack_top = __gc_stack_bottom;
+  __gc_stack_top = (size_t) (f->stack_ptr - 1);
   // __gc_stack_top = (size_t) f->global_ptr - STACK_SIZE * sizeof(aint);
   interpret(stdout, f);
   free(f);

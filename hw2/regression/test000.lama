@@ -1,25 +1,34 @@
-var n, t;
+fun bubbleSort (l) {
+  fun inner (l) {
+    case l of
+      x : z@(y : tl) ->
+       if x > y
+       then [true, y : inner (x : tl) [1]]
+       else case inner (z) of [f, z] -> [f, x : z] esac
+       fi
+    | _ -> [false, l]
+    esac
+  }
 
-fun insert (t, x) {
-  case t of
-    Leaf           ->  Node (x, Leaf, Leaf)
-  | Node (y, l, r) -> if x > y
-                          then  Node (y, insert (l, x), r)
-			  else  Node (y, l, insert (r, x))
-		       fi
-  esac
+  fun rec (l) {
+    case inner (l) of
+      [true , l] -> rec (l)
+    | [false, l] -> l
+    esac
+  }
+
+  rec (l)
 }
 
-fun find (t, x) {
-  case t of
-    Leaf           ->  0
-  | Node (y, l, r) -> if x == y then  1
-		      elif x > y then  find (l, x)
-		                 else  find (r, x)
-		      fi
-  esac
+fun generate (n) {
+  if n then n : generate (n-1) else {} fi
 }
 
-n := read ();
+fun print(x) {
+    case x of
+      h : tl -> write(h);print(tl)
+      | {} -> skip
+    esac
+}
 
-insert (insert (insert (insert (Leaf, 5), 4), 6), 3)
+print(bubbleSort (generate (10000)))

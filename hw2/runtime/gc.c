@@ -1,12 +1,13 @@
 #define _GNU_SOURCE 1
 
-#define DEBUG_PRINT
+// #define DEBUG_PRINT
 
 #include "gc.h"
 
 #include "runtime_common.h"
 
 #include <assert.h>
+#include <errno.h>
 #include <execinfo.h>
 #include <signal.h>
 #include <stdio.h>
@@ -283,11 +284,12 @@ void compact_phase (size_t additional_size) {
 
   memory_chunk old_heap = heap;
   heap.begin            = mmap(NULL, WORDS_TO_BYTES(next_heap_pseudo_size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  memcpy(heap.begin, old_heap.begin, WORDS_TO_BYTES(old_heap.size));
   if (heap.begin == MAP_FAILED) {
-    perror("ERROR: compact_phase: mmap failed\n");
+    fprintf(stderr, "ERROR: mmap failed for size %zu: %s\n",
+            WORDS_TO_BYTES(next_heap_pseudo_size), strerror(errno));
     exit(1);
   }
+  memcpy(heap.begin, old_heap.begin, WORDS_TO_BYTES(old_heap.size));
   heap.end     = heap.begin + next_heap_pseudo_size;
   heap.size    = next_heap_pseudo_size;
   heap.current = heap.begin + (old_heap.current - old_heap.begin);

@@ -5,8 +5,7 @@
 #ifndef HW2_INTERPRETER_H
 #define HW2_INTERPRETER_H
 
-#define STACK_SIZE 1048576
-#define CALL_STACK_SIZE 1048576
+#define STACK_SIZE 83886080
 #include "runtime_common.h"
 #include <stdio.h>
 

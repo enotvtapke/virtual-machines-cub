@@ -17,7 +17,7 @@
 //   aint* ebp;
 // } Stack_frame;
 
-#define DEBUG_PRINT
+// #define DEBUG_PRINT
 
 #ifdef DEBUG_PRINT
 #define DEBUG_LOG(...) fprintf(stdout, __VA_ARGS__)

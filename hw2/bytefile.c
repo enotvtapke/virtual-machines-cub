@@ -59,8 +59,6 @@ bytefile *read_file(char *fname) {
   file->global_ptr = &stack[STACK_SIZE];
   file->stack_ptr = &stack[STACK_SIZE];
 
-  file->global_ptr = (int *) malloc(file->global_area_size * sizeof(void *));
-
   return file;
 }
 
