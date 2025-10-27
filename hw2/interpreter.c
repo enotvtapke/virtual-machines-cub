@@ -14,12 +14,13 @@
 
 typedef struct {
   char *ip;
-  aint *esp;
   aint *ebp;
   bytefile *bf;
 } State;
 
 static State state;
+
+#define ESP (((aint *) __gc_stack_top) + 1)
 
 static void print_stack_value(const aint v) {
   if (UNBOXED(v)) {
@@ -36,11 +37,11 @@ static void print_stack_value(const aint v) {
 }
 
 static void dump_stack() {
-  const size_t m = state.bf->stack_ptr - state.esp;
+  const size_t m = state.bf->stack_ptr - ESP;
   DEBUG_LOG("---STACK---\n");
   for (int i = 0; i < m; ++i) {
-    print_stack_value(*(state.esp + i));
-    if (state.esp + i == state.ebp) {
+    print_stack_value(*(ESP + i));
+    if (ESP + i == state.ebp) {
       DEBUG_LOG(" <- ebp");
     }
     DEBUG_LOG("\n");
@@ -51,18 +52,18 @@ static void dump_stack() {
 }
 
 static void push(const aint value) {
-  --state.esp;
-  *state.esp = value;
-  __gc_stack_top = (size_t) (state.esp - 1);
+  __gc_stack_top -= sizeof(size_t);
+  *ESP = value;
+  __gc_stack_top = (size_t) (ESP - 1);
 }
 
 static aint pop() {
-  if (state.esp == state.bf->stack_ptr) { // TODO I could check popping locals is I saved the number of locals
+  if (ESP == state.bf->stack_ptr) { // TODO I could check popping locals is I saved the number of locals
     failure("Stack underflow");
   }
-  ++state.esp;
-  __gc_stack_top = (size_t) (state.esp - 1);
-  return *(state.esp - 1);
+  __gc_stack_top += sizeof(size_t);
+  __gc_stack_top = (size_t) (ESP - 1);
+  return *(ESP - 1);
 }
 
 static aint get_global(const int index) {
@@ -164,7 +165,6 @@ static void eval_binop(char op);
 /* Disassembles the bytecode pool */
 void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
-  state.esp = bf->stack_ptr;
   state.ebp = bf->stack_ptr;
   state.bf = bf;
 
@@ -249,7 +249,7 @@ void interpret(FILE *f, bytefile *bf) {
             const int args_num = UNBOX(*(state.ebp - 1));
             aint * old_ebp = (aint *) *state.ebp;
             state.ip = (char *) *(state.ebp + 1);
-            state.esp = state.ebp + 3 + args_num; // Pop return address, base pointer of parent function, closure and args
+            __gc_stack_top = (size_t) (state.ebp + 3 + args_num - 1); // Pop return address, base pointer of parent function, closure and args
             state.ebp = old_ebp;
             push(return_value);
             break;
@@ -306,7 +306,7 @@ void interpret(FILE *f, bytefile *bf) {
       case 4: {
         DEBUG_LOG("ST\t");
         const int index = INT;
-        set_var(f, l, index, *state.esp, h, l);
+        set_var(f, l, index, *ESP, h, l);
         break;
       }
 
@@ -379,7 +379,7 @@ void interpret(FILE *f, bytefile *bf) {
             const aint offset = ((aint *) closure->contents)[0];
             push((aint) state.ip);
             push((aint) state.ebp);
-            state.ebp = state.esp;
+            state.ebp = ESP;
             state.ip = state.bf->code_ptr + offset;
             break;
           }
@@ -391,7 +391,7 @@ void interpret(FILE *f, bytefile *bf) {
             push(EMPTY); // Space for closure. Not empty in CALLC
             push((aint) state.ip);
             push((aint) state.ebp);
-            state.ebp = state.esp;
+            state.ebp = ESP;
             state.ip = state.bf->code_ptr + offset;
             break;
           }
@@ -480,7 +480,7 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 3:
             DEBUG_LOG("CALL\tLstring");
-            push((aint) Lstring(state.esp));
+            push((aint) Lstring(ESP));
             break;
 
           case 4: {
@@ -561,5 +561,5 @@ static void eval_binop(const char op) {
     default:
       failure("Unknown binop %d", op);
   }
-  DEBUG_LOG("\nBinop res: %d", UNBOX(*state.esp));
+  DEBUG_LOG("\nBinop res: %d", UNBOX(*ESP));
 }
