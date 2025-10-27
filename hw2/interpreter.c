@@ -52,12 +52,15 @@ static void dump_stack() {
 }
 
 inline static void push(const aint value) {
+  if (ESP <= state.bf->stack_ptr - STACK_SIZE) {
+    failure("Stack overflow");
+  }
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
 }
 
 inline static aint pop() {
-  if (ESP == state.bf->stack_ptr) { // TODO I could check popping locals is I saved the number of locals
+  if (ESP >= state.bf->stack_ptr) { // TODO I could check popping locals if I saved the number of locals
     failure("Stack underflow");
   }
   __gc_stack_top += sizeof(size_t);
@@ -65,10 +68,16 @@ inline static aint pop() {
 }
 
 inline static aint get_global(const int index) {
+  if (index >= state.bf->global_area_size) {
+    failure("Global variable %d out of bounds", index);
+  }
   return state.bf->global_ptr[index];
 }
 
 inline static void set_global(const int index, const aint value) {
+  if (index >= state.bf->global_area_size) {
+    failure("Global variable %d out of bounds", index);
+  }
   state.bf->global_ptr[index] = value;
 }
 
