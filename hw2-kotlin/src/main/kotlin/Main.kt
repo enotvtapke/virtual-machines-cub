@@ -8,7 +8,7 @@ import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.readText
 
 fun main() {
-    test("test046.lama")
+    test("test082.lama")
 //    val time = System.currentTimeMillis()
 //    test("Sort.lama")
 //    val duration = System.currentTimeMillis() - time

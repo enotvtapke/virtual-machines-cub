@@ -1,6 +1,6 @@
 #define _GNU_SOURCE 1
 
-// #define DEBUG_PRINT
+#define DEBUG_PRINT
 
 #include "gc.h"
 
@@ -63,7 +63,7 @@ void *alloc (size_t size) {
   size            = BYTES_TO_WORDS(size);
   size_t padding  = size * sizeof(size_t) - obj_size;
 #if defined(DEBUG_VERSION) && defined(DEBUG_PRINT)
-  fprintf(stderr, "allocation of size %zu words (%zu bytes): ", size, bytes_sz);
+  fprintf(stderr, "allocation of size %zu words: ", size);
 #endif
   void *p = gc_alloc_on_existing_heap(size);
   if (!p) {

@@ -45,21 +45,55 @@ static void push(const aint value) {
   // DEBUG_LOG("\nPUSH %d", value);
   --state.esp;
   *state.esp = value;
-  __gc_stack_top = (size_t) state.esp;
+  __gc_stack_top = (size_t) (state.esp - 1);
 }
 
 #define EMPTY BOX(0)
+
+// #define STRING_TAG 0x00000001
+// #define ARRAY_TAG 0x00000003
+// #define SEXP_TAG 0x00000005
+// #define CLOSURE_TAG 0x00000007
+
+void print_stack_value(const aint v) {
+  if (UNBOXED(v)) {
+    DEBUG_LOG("%d", UNBOX(v));
+  } else {
+    // DEBUG_LOG("%d pointer", v);
+    data * d = TO_DATA(v);
+    size_t l = LEN(d->data_header);
+    DEBUG_LOG("%d: tag %d, len %d", v, TAG(d->data_header), l);
+  }
+}
+
+static void dump_stack() {
+  const size_t m = state.bf->stack_ptr - state.esp;
+  DEBUG_LOG("---STACK---\n");
+  for (int i = 0; i < m; ++i) {
+    print_stack_value(*(state.esp + i));
+    if (state.esp + i == state.ebp) {
+      DEBUG_LOG(" <- ebp");
+    }
+    DEBUG_LOG("\n");
+    fflush(stdout);
+  }
+  DEBUG_LOG("----------\n");
+  fflush(stdout);
+}
 
 static aint pop() {
   // DEBUG_LOG("\nPOP");
   // if (state.esp >= state.ebp - 1) {
   //   failure("Stack underflow");
   // }
-  if (state.esp >= state.ebp - 2) {
-    DEBUG_LOG("\nMAYBE POPPING LOCAL 0");
+  if (state.esp == state.bf->stack_ptr) {
+    failure("Stack underflow");
   }
+  // if (state.esp >= state.ebp - 2) {
+  //   DEBUG_LOG("\nMAYBE POPPING LOCAL 0");
+  // }
   ++state.esp;
-  __gc_stack_top = (size_t) state.esp;
+  __gc_stack_top = (size_t) (state.esp - 1);
   return *(state.esp - 1);
 }
 
@@ -80,18 +114,20 @@ static void set_local(const int index, const aint value) {
 }
 
 static aint get_arg(const int index) {
-  return *(state.ebp + 3 + index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
+  const aint num_args = UNBOX(*(state.ebp - 1)); // TODO maybe slow args in wrong order
+  return *(state.ebp + 3 + num_args - 1 - index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
 static void set_arg(const int index, const aint value) {
-  *(state.ebp + 3 + index) = value;
+  const aint num_args = UNBOX(*(state.ebp - 1));
+  *(state.ebp + 3 + num_args - 1 - index) = value;
 }
 
 static data * safe_retrieve_closure(const aint closure_ptr) {
   ASSERT_BOXED("CALLC", closure_ptr);
   data * closure = TO_DATA(closure_ptr);
   if (TAG(closure->data_header) != CLOSURE_TAG) {
-    failure("Expected closure, got %d", TAG(closure->data_header));
+    failure("Expected closure, got %d tag", TAG(closure->data_header));
   }
   return closure;
 }
@@ -227,7 +263,7 @@ void interpret(FILE *f, bytefile *bf) {
   state.ip = bf->code_ptr;
   state.closure = NULL;
   state.esp = bf->stack_ptr;
-  __gc_stack_top = (size_t) state.esp;
+  __gc_stack_top = (size_t) (state.esp - 1);
   state.ebp = bf->stack_ptr;
   state.bf = bf;
   // state.call_stack = malloc(sizeof(Stack_frame) * CALL_STACK_SIZE);
@@ -240,9 +276,11 @@ void interpret(FILE *f, bytefile *bf) {
     char x = BYTE,
         h = (x & 0xF0) >> 4,
         l = x & 0x0F;
+    #ifdef DEBUG_PRINT
+      dump_stack();
+    #endif
     DEBUG_LOG("0x%.8x:\t", state.ip - state.bf->code_ptr - 1);
     // DEBUG_LOG("%d ", get_local(0));
-
     switch (h) {
       case 15:
         goto stop;
@@ -277,7 +315,7 @@ void interpret(FILE *f, bytefile *bf) {
 
             aint args[n + 1]; // I could not use args if the stack grew upwards
             for (int i = 0; i < n; i++) {
-              args[i] = pop();
+              args[n - i - 1] = pop();
             }
             args[n] = LtagHash(tag);
             push((aint) Bsexp(args, BOX(n + 1)));
@@ -312,9 +350,8 @@ void interpret(FILE *f, bytefile *bf) {
             DEBUG_LOG("END/RET");
             if (state.ebp == bf->stack_ptr) goto stop; // Exiting main function
             const aint res = pop();
-            const int args_num = UNBOX(state.ebp - 1);
+            const int args_num = UNBOX(*(state.ebp - 1));
             state.esp = state.ebp;
-            __gc_stack_top = (size_t) state.esp;
             state.ebp = (aint *) pop();
             state.ip = (char *) pop();
             pop(); // Pop the closure pointer
@@ -322,6 +359,7 @@ void interpret(FILE *f, bytefile *bf) {
               pop();
             }
             push(res);
+            __gc_stack_top = (size_t) (state.esp - 1);
             break;
           }
 
@@ -479,14 +517,15 @@ void interpret(FILE *f, bytefile *bf) {
             const int len = INT;
             DEBUG_LOG("TAG\t%s ", tag);
             DEBUG_LOG("%d", len);
-            push(Btag((void *) pop(), LtagHash(tag), len));
+            aint sexp = pop();
+            push(Btag((void *) sexp, LtagHash(tag), BOX(len)));
             break;
           }
 
           case 8: {
             const int n = INT;
             DEBUG_LOG("ARRAY\t%d", n);
-            push(Barray_patt((void*) pop, n));
+            push(Barray_patt((void*) pop(), BOX(n)));
             break;
           }
 
@@ -523,12 +562,15 @@ void interpret(FILE *f, bytefile *bf) {
             push(Barray_tag_patt((void *) pop()));
             break;
           case 3:
-            push(Bboxed_patt((void *) pop()));
+            push(Bsexp_tag_patt((void *) pop()));
             break;
           case 4:
-            push(Bunboxed_patt((void *) pop()));
+            push(Bboxed_patt((void *) pop()));
             break;
           case 5:
+            push(Bunboxed_patt((void *) pop()));
+            break;
+          case 6:
             push(Bclosure_tag_patt((void *) pop()));
             break;
           default:
@@ -545,7 +587,7 @@ void interpret(FILE *f, bytefile *bf) {
 
           case 1:
             DEBUG_LOG("CALL\tLwrite");
-            push(Lwrite(pop()));
+            push(BOX(Lwrite(pop())));
             break;
 
           case 2: {
@@ -558,7 +600,6 @@ void interpret(FILE *f, bytefile *bf) {
           case 3:
             DEBUG_LOG("CALL\tLstring");
             push((aint) Lstring(state.esp));
-            pop();
             break;
 
           case 4: {
@@ -585,5 +626,5 @@ void interpret(FILE *f, bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  fprintf(f, "<end>\n");
+  fprintf(f, "<endi>\n");
 }

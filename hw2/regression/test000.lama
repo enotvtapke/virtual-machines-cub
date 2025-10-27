@@ -1,3 +1,25 @@
-case A (1) of
-  A (x) -> write(1)
-esac
+var n, t;
+
+fun insert (t, x) {
+  case t of
+    Leaf           ->  Node (x, Leaf, Leaf)
+  | Node (y, l, r) -> if x > y
+                          then  Node (y, insert (l, x), r)
+			  else  Node (y, l, insert (r, x))
+		       fi
+  esac
+}
+
+fun find (t, x) {
+  case t of
+    Leaf           ->  0
+  | Node (y, l, r) -> if x == y then  1
+		      elif x > y then  find (l, x)
+		                 else  find (r, x)
+		      fi
+  esac
+}
+
+n := read ();
+
+insert (insert (insert (insert (Leaf, 5), 4), 6), 3)

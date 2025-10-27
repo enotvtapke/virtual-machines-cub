@@ -5,7 +5,7 @@
 #include <limits.h>
 
 // this flag makes GC behavior a bit different for testing purposes.
-//#define DEBUG_VERSION
+#define DEBUG_VERSION
 //#define FULL_INVARIANT_CHECKS
 
 extern size_t __gc_stack_top, __gc_stack_bottom;
