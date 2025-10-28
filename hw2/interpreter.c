@@ -234,12 +234,10 @@ void interpret(FILE *f, bytefile *bf) {
             const int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
 
-            aint args[n + 1]; // TODO I could not reverse args if the stack grew upwards
-            for (int i = 0; i < n; i++) {
-              args[n - i - 1] = pop();
-            }
-            args[n] = LtagHash(tag);
-            push((aint) Bsexp(args, BOX(n + 1)));
+            push(LtagHash(tag));
+            const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
+            __gc_stack_top += (n + 1) * sizeof(size_t);
+            push(result);
             DEBUG_LOG("%d", n);
             break;
           }
@@ -514,11 +512,9 @@ void interpret(FILE *f, bytefile *bf) {
           case 4: {
             const int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
-            aint arr[len];
-            for (int i = 0; i < len; i++) {
-              arr[len - 1 - i] = pop();
-            }
-            push((aint) Barray(arr, BOX(len)));
+            const aint result = (aint) Barray_reversed(ESP, BOX(len));
+            __gc_stack_top += len * sizeof(size_t);
+            push(result);
             break;
           }
 
