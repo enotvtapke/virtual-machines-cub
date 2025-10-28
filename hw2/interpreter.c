@@ -199,7 +199,7 @@ void interpret(FILE *f, bytefile *bf) {
   static const char* const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
   #endif
   do {
-    const char x = BYTE, h = (x & 0xF0) >> 4, l = x & 0x0F;
+    const unsigned char x = BYTE, h = (x & 0xF0) >> 4, l = x & 0x0F;
     #ifdef DEBUG_PRINT
       dump_stack();
     #endif
