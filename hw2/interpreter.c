@@ -144,18 +144,80 @@ inline static void check_code_size() {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
+enum Instruction {
+  // High nibble values (h)
+  BINOP = 0,
+  CONST = 1,
+  LD = 2,
+  LDA = 3,
+  ST = 4,
+  CONTROL = 5,
+  PATT = 6,
+  BUILTIN = 7,
+  STOP = 15,
+
+  // Low nibble values for CONST group (h=1)
+  CONST_INT = 0,
+  CONST_STRING = 1,
+  MAKE_CONST = 2,
+  STI = 3,
+  STA = 4,
+  JMP = 5,
+  END = 6,
+  RET = 7,
+  DROP = 8,
+  DUP = 9,
+  SWAP = 10,
+  ELEM = 11,
+
+  // Low nibble values for LD/LDA/ST variable locations
+  GLOBAL = 0,
+  LOCAL = 1,
+  ARG = 2,
+  CLOSURE_VAR = 3,
+
+  // Low nibble values for CONTROL group (h=5)
+  CJMPz = 0,
+  CJMPnz = 1,
+  BEGIN = 2,
+  CBEGIN = 3,
+  MAKE_CLOSURE = 4,
+  CALLC = 5,
+  CALL = 6,
+  TAG = 7,
+  MAKE_ARRAY = 8,
+  FAIL_I = 9,
+  LINE = 10,
+
+  // Low nibble values for PATT group (h=6)
+  PATT_STR_EQ = 0,
+  PATT_STRING = 1,
+  PATT_ARRAY = 2,
+  PATT_SEXP = 3,
+  PATT_BOXED = 4,
+  PATT_UNBOXED = 5,
+  PATT_CLOSURE = 6,
+
+  // Low nibble values for BUILTIN group (h=7)
+  BUILTIN_Lread = 0,
+  BUILTIN_Lwrite = 1,
+  BUILTIN_Llength = 2,
+  BUILTIN_Lstring = 3,
+  BUILTIN_Barray = 4
+};
+
 inline static aint get_var(FILE *f, const char designation, const int index, const char h, const char l) {
   switch (designation) {
-    case 0:
+    case GLOBAL:
       DEBUG_LOG("G(%d)", index);
       return get_global(index);
-    case 1:
+    case LOCAL:
       DEBUG_LOG("L(%d)", index);
       return get_local(index);
-    case 2:
+    case ARG:
       DEBUG_LOG("A(%d)", index);
       return get_arg(index);
-    case 3:
+    case CLOSURE_VAR:
       DEBUG_LOG("C(%d)", index);
       return get_closure(index);
     default:
@@ -165,19 +227,19 @@ inline static aint get_var(FILE *f, const char designation, const int index, con
 
 inline static void set_var(FILE *f, const char designation, const int index, const aint value, const char h, const char l) {
   switch (designation) {
-    case 0:
+    case GLOBAL:
       DEBUG_LOG("G(%d)=%d", index, value);
       set_global(index, value);
       break;
-    case 1:
+    case LOCAL:
       DEBUG_LOG("L(%d)=%d", index, value);
       set_local(index, value);
       break;
-    case 2:
+    case ARG:
       DEBUG_LOG("A(%d)=%d", index, value);
       set_arg(index, value);
       break;
-    case 3:
+    case CLOSURE_VAR:
       DEBUG_LOG("C(%d)=%d", index, value);
       set_closure(index, value);
       break;
@@ -205,31 +267,31 @@ void interpret(FILE *f, bytefile *bf) {
     #endif
     DEBUG_LOG("0x%.8x:\t", state.ip - state.bf->code_ptr - 1);
     switch (h) {
-      case 15:
+      case STOP:
         goto stop;
 
-      case 0:
+      case BINOP:
         DEBUG_LOG("BINOP\t%s", ops[l - 1]);
         eval_binop(l - 1);
         break;
 
-      case 1:
+      case CONST:
         switch (l) {
-          case 0: {
+          case CONST_INT: {
             const aint value = INT;
             DEBUG_LOG("CONST\t%d", value);
             push(BOX(value));
             break;
           }
 
-          case 1: {
+          case CONST_STRING: {
             char * s = STRING;
             DEBUG_LOG("STRING\t%s", s);
             push((aint) Bstring((aint *) &s));
             break;
           }
 
-          case 2: {
+          case MAKE_CONST: {
             char * tag = STRING;
             const int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
@@ -242,13 +304,13 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 3: {
+          case STI: {
             DEBUG_LOG("STI");
             failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
             break;
           }
 
-          case 4: {
+          case STA: {
               DEBUG_LOG("STA");
               const aint value = pop();
               const aint index = pop();
@@ -257,15 +319,15 @@ void interpret(FILE *f, bytefile *bf) {
               break;
           }
 
-          case 5: {
+          case JMP: {
             const int offset = INT;
             DEBUG_LOG("JMP\t0x%.8x", offset);
             state.ip = bf->code_ptr + offset;
             break;
           }
 
-          case 6:
-          case 7: {
+          case END:
+          case RET: {
             DEBUG_LOG("END/RET");
             if (state.ebp == bf->stack_ptr) goto stop; // Exiting the main function
             const aint return_value = pop();
@@ -278,12 +340,12 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 8:
+          case DROP:
             DEBUG_LOG("DROP");
             pop();
             break;
 
-          case 9: {
+          case DUP: {
             DEBUG_LOG("DUP");
             const aint value = pop();
             push(value);
@@ -291,7 +353,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 10: {
+          case SWAP: {
             DEBUG_LOG("SWAP");
             const aint a = pop();
             const aint b = pop();
@@ -300,7 +362,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 11: {
+          case ELEM: {
             DEBUG_LOG("ELEM");
             const aint index = pop();
             void * array = (void *) pop();
@@ -313,7 +375,7 @@ void interpret(FILE *f, bytefile *bf) {
         }
         break;
 
-      case 2: {
+      case LD: {
         DEBUG_LOG("LD\t");
         const int index = INT;
         const aint value = get_var(f, l, index, h, l);
@@ -321,21 +383,21 @@ void interpret(FILE *f, bytefile *bf) {
         push(value);
         break;
       }
-      case 3: {
+      case LDA: {
         DEBUG_LOG("LDA\t");
         failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
         break;
       }
-      case 4: {
+      case ST: {
         DEBUG_LOG("ST\t");
         const int index = INT;
         set_var(f, l, index, *ESP, h, l);
         break;
       }
 
-      case 5:
+      case CONTROL:
         switch (l) {
-          case 0: {
+          case CJMPz: {
             const aint offset = INT;
             DEBUG_LOG("CJMPz\t0x%.8x", offset);
             const aint value = UNBOX(pop());
@@ -346,7 +408,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 1: {
+          case CJMPnz: {
             const aint offset = INT;
             DEBUG_LOG("CJMPnz\t0x%.8x", offset);
             const aint value = UNBOX(pop());
@@ -357,8 +419,8 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 2:
-          case 3: {
+          case BEGIN:
+          case CBEGIN: {
             const int args_num = INT;
             const int locals_num = INT;
             DEBUG_LOG("BEGIN\t%d ", args_num);
@@ -371,7 +433,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 4: {
+          case MAKE_CLOSURE: {
             const int offset = INT;
             const int vars_num = INT;
             DEBUG_LOG("CLOSURE\t0x%.8x\t%d", offset, vars_num);
@@ -386,7 +448,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 5: {
+          case CALLC: {
             const int args_num = INT;
             DEBUG_LOG("CALLC\t%d", args_num);
 
@@ -410,7 +472,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 6: {
+          case CALL: {
             const int offset = INT;
             const int locals_num = INT;
             DEBUG_LOG("CALL\t0x%.8x %d", offset, locals_num);
@@ -422,7 +484,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 7: {
+          case TAG: {
             char * tag = STRING;
             const int len = INT;
             DEBUG_LOG("TAG\t%s %d", tag, len);
@@ -430,14 +492,14 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 8: {
+          case MAKE_ARRAY: {
             const int n = INT;
             DEBUG_LOG("ARRAY\t%d", n);
             push(Barray_patt((void*) pop(), BOX(n)));
             break;
           }
 
-          case 9: {
+          case FAIL_I: {
             const int line = INT;
             const int col = INT;
             DEBUG_LOG("FAIL\t%d", line);
@@ -446,7 +508,7 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case 10: {
+          case LINE: {
             int line = INT;
             DEBUG_LOG("LINE\t%d", line);
             break;
@@ -457,28 +519,28 @@ void interpret(FILE *f, bytefile *bf) {
         }
         break;
 
-      case 6:
+      case PATT:
         DEBUG_LOG("PATT\t%s", pats[l]);
         switch (l) {
-          case 0:
+          case PATT_STR_EQ:
             push(Bstring_patt((void *) pop(), (void *) pop()));
             break;
-          case 1:
+          case PATT_STRING:
             push(Bstring_tag_patt((void *) pop()));
             break;
-          case 2:
+          case PATT_ARRAY:
             push(Barray_tag_patt((void *) pop()));
             break;
-          case 3:
+          case PATT_SEXP:
             push(Bsexp_tag_patt((void *) pop()));
             break;
-          case 4:
+          case PATT_BOXED:
             push(Bboxed_patt((void *) pop()));
             break;
-          case 5:
+          case PATT_UNBOXED:
             push(Bunboxed_patt((void *) pop()));
             break;
-          case 6:
+          case PATT_CLOSURE:
             push(Bclosure_tag_patt((void *) pop()));
             break;
           default:
@@ -486,30 +548,30 @@ void interpret(FILE *f, bytefile *bf) {
         }
         break;
 
-      case 7: {
+      case BUILTIN: {
         switch (l) {
-          case 0:
+          case BUILTIN_Lread:
             DEBUG_LOG("CALL\tLread");
             push(Lread());
             break;
 
-          case 1:
+          case BUILTIN_Lwrite:
             DEBUG_LOG("CALL\tLwrite");
             push(BOX(Lwrite(pop())));
             break;
 
-          case 2: {
+          case BUILTIN_Llength: {
             DEBUG_LOG("CALL\tLlength");
             push(Llength((void *) pop()));
             break;
           }
 
-          case 3:
+          case BUILTIN_Lstring:
             DEBUG_LOG("CALL\tLstring");
             push((aint) Lstring(ESP));
             break;
 
-          case 4: {
+          case BUILTIN_Barray: {
             const int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
             const aint result = (aint) Barray_reversed(ESP, BOX(len));
