@@ -35,7 +35,7 @@ bytefile *read_file(char *fname) {
     failure("%s\n", strerror(errno));
   }
 
-  bytefile *file = malloc(sizeof(void *) * 5 + sizeof(long) + (size = ftell(f)));
+  bytefile *file = malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = ftell(f)));
 
   if (file == 0) {
     failure("*** FAILURE: unable to allocate memory.\n");
@@ -67,6 +67,19 @@ bytefile *read_file(char *fname) {
   file->global_ptr = &stack[STACK_SIZE];
   file->stack_ptr = &stack[STACK_SIZE];
 
+  file->entrypoint_offset = -1;
+  for (int i = 0; i < file->public_symbols_number; i++) {
+    if (strcmp(get_public_name(file, i), "main") == 0) {
+      file->entrypoint_offset = get_public_offset(file, i);
+      break;
+    }
+  }
+  if (file->entrypoint_offset == -1) {
+    failure("*** FAILURE: main function not found.\n");
+  }
+  if (file->entrypoint_offset >= file->code_size) {
+    failure("*** FAILURE: Wrong main function offset.\n");
+  }
   return file;
 }
 

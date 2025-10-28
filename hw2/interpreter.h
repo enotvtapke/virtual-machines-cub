@@ -22,7 +22,8 @@ typedef struct {
   char *code_ptr;            // A pointer to the bytecode itself
   aint *global_ptr;          // A pointer to the global area
   aint *stack_ptr;           // A pointer to the stack bottom (stack grows downwards)
-  long code_size;             // Code section size in bytes
+  long code_size;            // Code section size in bytes
+  int entrypoint_offset;     // Public symbol "main" offset
   int stringtab_size;        // The size (in bytes) of the string table
   int global_area_size;      // The size (in words) of global area
   int public_symbols_number; // The number of public symbols

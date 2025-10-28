@@ -190,7 +190,7 @@ inline static void eval_binop(char op);
 
 /* Disassembles the bytecode pool */
 void interpret(FILE *f, bytefile *bf) {
-  state.ip = bf->code_ptr;
+  state.ip = bf->code_ptr + bf->entrypoint_offset;
   state.ebp = bf->stack_ptr;
   state.bf = bf;
 
