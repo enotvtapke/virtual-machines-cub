@@ -539,51 +539,93 @@ enum Binop {
 };
 
 inline static void eval_binop(const char op) {
-  void *b = (void *) pop();
-  void *a = (void *) pop();
-  DEBUG_LOG("\nBinop with args: %d, %d", UNBOX(a), UNBOX(b));
+  void *q = (void *) pop();
+  void *p = (void *) pop();
+  DEBUG_LOG("\nBinop with args: %ld, %ld", UNBOX(p), UNBOX(q));
   switch (op) {
     case ADD:
-      push(Ls__Infix_43(a, b));
+      ASSERT_UNBOXED("captured +:1", p);
+      ASSERT_UNBOXED("captured +:2", q);
+
+      push(BOX(UNBOX(p) + UNBOX(q)));
       break;
     case SUB:
-      push(Ls__Infix_45(a, b));
+      if (UNBOXED(p)) {
+        ASSERT_UNBOXED("captured -:2", q);
+        push(BOX(UNBOX(p) - UNBOX(q)));
+        break;
+      }
+
+      ASSERT_BOXED("captured -:1", q);
+      push(BOX(p - q));
       break;
     case MUL:
-      push(Ls__Infix_42(a, b));
+      ASSERT_UNBOXED("captured *:1", p);
+      ASSERT_UNBOXED("captured *:2", q);
+
+      push(BOX(UNBOX(p) * UNBOX(q)));
       break;
     case DIV:
-      push(Ls__Infix_47(a, b));
+      ASSERT_UNBOXED("captured /:1", p);
+      ASSERT_UNBOXED("captured /:2", q);
+      if (q == 0) {
+        failure("Division by zero\n");
+      }
+      push(BOX(UNBOX(p) / UNBOX(q)));
       break;
     case MOD:
-      push(Ls__Infix_37(a, b));
+      ASSERT_UNBOXED("captured %:1", p);
+      ASSERT_UNBOXED("captured %:2", q);
+
+      push(BOX(UNBOX(p) % UNBOX(q)));
       break;
     case LT:
-      push(Ls__Infix_60(a, b));
+      ASSERT_UNBOXED("captured <:1", p);
+      ASSERT_UNBOXED("captured <:2", q);
+
+      push(BOX(UNBOX(p) < UNBOX(q)));
       break;
     case LTE:
-      push(Ls__Infix_6061(a, b));
+      ASSERT_UNBOXED("captured <=:1", p);
+      ASSERT_UNBOXED("captured <=:2", q);
+
+      push(BOX(UNBOX(p) <= UNBOX(q)));
       break;
     case GT:
-      push(Ls__Infix_62(a, b));
+      ASSERT_UNBOXED("captured >:1", p);
+      ASSERT_UNBOXED("captured >:2", q);
+
+      push(BOX(UNBOX(p) > UNBOX(q)));
       break;
     case GTE:
-      push(Ls__Infix_6261(a, b));
+      ASSERT_UNBOXED("captured >=:1", p);
+      ASSERT_UNBOXED("captured >=:2", q);
+
+      push(BOX(UNBOX(p) >= UNBOX(q)));
       break;
     case EQ:
-      push(Ls__Infix_6161(a, b));
+      push(BOX(p == q));
       break;
     case NEQ:
-      push(Ls__Infix_3361(a, b));
+      ASSERT_UNBOXED("captured !=:1", p);
+      ASSERT_UNBOXED("captured !=:2", q);
+
+      push(BOX(UNBOX(p) != UNBOX(q)));
       break;
     case AND:
-      push(Ls__Infix_3838(a, b));
+      ASSERT_UNBOXED("captured &&:1", p);
+      ASSERT_UNBOXED("captured &&:2", q);
+
+      push(BOX(UNBOX(p) && UNBOX(q)));
       break;
     case OR:
-      push(Ls__Infix_3333(a, b));
+      ASSERT_UNBOXED("captured !!:1", p);
+      ASSERT_UNBOXED("captured !!:2", q);
+
+      push(BOX(UNBOX(p) || UNBOX(q)));
       break;
     default:
       failure("Unknown binop %d\n", op);
   }
-  DEBUG_LOG("\nBinop res: %d", UNBOX(*ESP));
+  DEBUG_LOG("\nBinop res: %ld", UNBOX(*ESP));
 }
