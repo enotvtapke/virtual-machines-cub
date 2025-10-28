@@ -208,7 +208,6 @@ void interpret(FILE *f, bytefile *bf) {
       case 15:
         goto stop;
 
-      /* BINOP */
       case 0:
         DEBUG_LOG("BINOP\t%s", ops[l - 1]);
         eval_binop(l - 1);

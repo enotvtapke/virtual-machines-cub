@@ -49,10 +49,18 @@ bytefile *read_file(char *fname) {
 
   fclose(f);
 
+  if (file->stringtab_size < 0 ||
+      file->global_area_size < 0 ||
+      file->public_symbols_number < 0 ||
+      file->stringtab_size + file->public_symbols_number * 2 * sizeof(int) > size
+  ) {
+    failure("*** FAILURE: invalid file format.\n");
+  }
+
   file->string_ptr = &file->buffer[file->public_symbols_number * 2 * sizeof(int)];
   file->public_ptr = (int *) file->buffer;
   file->code_ptr = &file->string_ptr[file->stringtab_size];
-  file->code_size = size;
+  file->code_size = size - ((size_t) file->code_ptr - (size_t) &file->stringtab_size);
 
   aint * stack = malloc(sizeof(size_t) + file->global_area_size * sizeof(size_t) + STACK_SIZE * sizeof(aint));
 
