@@ -74,40 +74,40 @@ inline static aint pop() {
   return *(ESP - 1);
 }
 
-inline static aint get_global(const int index) {
+inline static aint get_global(const unsigned int index) {
   if (index >= state.bf->global_area_size) {
     failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
   }
   return state.bf->global_ptr[index];
 }
 
-inline static void set_global(const int index, const aint value) {
+inline static void set_global(const unsigned int index, const aint value) {
   if (index >= state.bf->global_area_size) {
     failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
   }
   state.bf->global_ptr[index] = value;
 }
 
-inline static aint get_local(const int index) {
+inline static aint get_local(const unsigned int index) {
   if (index >= get_locals_num()) {
     failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
   }
   return *(state.ebp - 3 - index); // - 2 because we saved the number of args between ebp and locals
 }
 
-inline static void set_local(const int index, const aint value) {
+inline static void set_local(const unsigned int index, const aint value) {
   if (index >= get_locals_num()) {
     failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
   }
   *(state.ebp - 3 - index) = value;
 }
 
-inline static aint get_arg(const int index) {
-  const aint num_args = UNBOX(*(state.ebp - 1)); // TODO maybe slow because args in wrong order
+inline static aint get_arg(const unsigned int index) {
+  const aint num_args = UNBOX(*(state.ebp - 1));
   return *(state.ebp + 3 + num_args - 1 - index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
-inline static void set_arg(const int index, const aint value) {
+inline static void set_arg(const unsigned int index, const aint value) {
   const aint num_args = UNBOX(*(state.ebp - 1));
   *(state.ebp + 3 + num_args - 1 - index) = value;
 }
@@ -121,15 +121,23 @@ inline static data * safe_retrieve_closure(const aint closure_ptr) {
   return closure;
 }
 
-inline static aint get_closure(const int index) {
+inline static aint get_closure(const unsigned int index) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
+  const ptrt captured_vars_num = LEN(closure->data_header) - 1;
+  if (index >= captured_vars_num) {
+    failure("Closure variable %d out of bounds. Number of vars in closure is %d", index, captured_vars_num);
+  }
   return ((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
 }
 
-inline static void set_closure(const int index, const aint value) {
+inline static void set_closure(const unsigned int index, const aint value) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
+  const ptrt captured_vars_num = LEN(closure->data_header) - 1;
+  if (index >= captured_vars_num) {
+    failure("Closure variable %d out of bounds. Number of vars in closure is %d", index, captured_vars_num);
+  }
   ((aint *) closure->contents)[1 + index] = value;
 }
 
