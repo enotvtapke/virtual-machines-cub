@@ -53,7 +53,7 @@ static void dump_stack() {
 
 inline static void push(const aint value) {
   if (ESP <= state.bf->stack_ptr - STACK_SIZE) {
-    failure("Stack overflow\n");
+    failure("Stack overflow at IP %d\n", state.ip);
   }
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
@@ -65,10 +65,10 @@ inline static aint get_locals_num() {
 
 inline static aint pop() {
   if (ESP >= state.ebp - 3 - (get_locals_num() - 1)) {
-    failure("Popping values from stack frame (locals or worse)\n");
+    failure("Popping values from stack frame (locals or worse) at IP %d\n", state.ip);
   }
   if (ESP >= state.bf->stack_ptr) {
-    failure("Stack underflow\n");
+    failure("Stack underflow at IP %d\n", state.ip);
   }
   __gc_stack_top += sizeof(size_t);
   return *(ESP - 1);
@@ -177,7 +177,7 @@ enum Instruction {
   // Low nibble values for CONST group (h=1)
   CONST_INT = 0,
   CONST_STRING = 1,
-  MAKE_CONST = 2,
+  MAKE_SEXP = 2,
   STI = 3,
   STA = 4,
   JMP = 5,
@@ -224,7 +224,7 @@ enum Instruction {
   BUILTIN_Barray = 4
 };
 
-inline static aint get_var(FILE *f, const char designation, const int index, const char h, const char l) {
+inline static aint get_var(const char designation, const int index, const char h, const char l) {
   switch (designation) {
     case GLOBAL:
       DEBUG_LOG("G(%d)", index);
@@ -243,7 +243,7 @@ inline static aint get_var(FILE *f, const char designation, const int index, con
   }
 }
 
-inline static void set_var(FILE *f, const char designation, const int index, const aint value, const char h, const char l) {
+inline static void set_var(const char designation, const int index, const aint value, const char h, const char l) {
   switch (designation) {
     case GLOBAL:
       DEBUG_LOG("G(%d)=%d", index, value);
@@ -269,7 +269,7 @@ inline static void set_var(FILE *f, const char designation, const int index, con
 inline static void eval_binop(char op);
 
 /* Disassembles the bytecode pool */
-void interpret(FILE *f, bytefile *bf) {
+void interpret(const bytefile *bf) {
   state.ip = bf->code_ptr + bf->entrypoint_offset;
   state.ebp = bf->stack_ptr;
   state.bf = bf;
@@ -309,10 +309,13 @@ void interpret(FILE *f, bytefile *bf) {
             break;
           }
 
-          case MAKE_CONST: {
+          case MAKE_SEXP: {
             char * tag = STRING;
             const int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
+            if (n < 0) {
+              failure("Negative sexp length\n");
+            }
 
             push(LtagHash(tag));
             const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
@@ -396,7 +399,7 @@ void interpret(FILE *f, bytefile *bf) {
       case LD: {
         DEBUG_LOG("LD\t");
         const int index = INT;
-        const aint value = get_var(f, l, index, h, l);
+        const aint value = get_var(l, index, h, l);
         DEBUG_LOG("=%d", value);
         push(value);
         break;
@@ -409,7 +412,7 @@ void interpret(FILE *f, bytefile *bf) {
       case ST: {
         DEBUG_LOG("ST\t");
         const int index = INT;
-        set_var(f, l, index, *ESP, h, l);
+        set_var(l, index, *ESP, h, l);
         break;
       }
 
@@ -458,7 +461,7 @@ void interpret(FILE *f, bytefile *bf) {
             for (int i = 1; i < vars_num + 1; i++) {
               const char designation = BYTE;
               const char index = INT;
-              args[i] = get_var(f, designation, index, h, l);
+              args[i] = get_var(designation, index, h, l);
             }
             push((aint) Bclosure(args, BOX(vars_num)));
             break;
@@ -484,7 +487,7 @@ void interpret(FILE *f, bytefile *bf) {
             push((aint) state.ip);
             push((aint) state.ebp);
             state.ebp = ESP;
-            state.ip = state.bf->code_ptr + offset;
+            jump(offset);
             break;
           }
 
@@ -496,7 +499,7 @@ void interpret(FILE *f, bytefile *bf) {
             push((aint) state.ip);
             push((aint) state.ebp);
             state.ebp = ESP;
-            state.ip = state.bf->code_ptr + offset;
+            jump(offset);
             break;
           }
 
@@ -590,6 +593,9 @@ void interpret(FILE *f, bytefile *bf) {
           case BUILTIN_Barray: {
             const int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
+            if (len < 0) {
+              failure("Negative array length\n");
+            }
             const aint result = (aint) Barray_reversed(ESP, BOX(len));
             __gc_stack_top += len * sizeof(size_t);
             push(result);
@@ -609,7 +615,7 @@ void interpret(FILE *f, bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  fprintf(f, "<done>\n");
+  printf("<done>\n");
 }
 
 enum Binop {

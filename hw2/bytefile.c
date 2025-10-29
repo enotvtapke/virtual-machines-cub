@@ -8,22 +8,31 @@
 #include "runtime.h"
 
 /* Gets a string from a string table by an index */
-char *get_string(bytefile *f, int pos) {
+const char * get_string(const bytefile * f, const int pos) {
+  if (pos >= f->stringtab_size) {
+    failure("*** FAILURE: invalid string index");
+  }
   return &f->string_ptr[pos];
 }
 
 /* Gets a name for a public symbol */
-char *get_public_name(bytefile *f, int i) {
+const char *get_public_name(const bytefile *f, const int i) {
+  if (i > f->public_symbols_number) {
+    failure("*** FAILURE: invalid public symbol index");
+  }
   return get_string(f, f->public_ptr[i * 2]);
 }
 
-/* Gets an offset for a publie symbol */
-int get_public_offset(bytefile *f, int i) {
+/* Gets an offset for a public symbol */
+int get_public_offset(const bytefile *f, const int i) {
+  if (i > f->public_symbols_number) {
+    failure("*** FAILURE: invalid public symbol index");
+  }
   return f->public_ptr[i * 2 + 1];
 }
 
 /* Reads a binary bytecode file by name and unpacks it */
-bytefile *read_file(char *fname) {
+const bytefile *read_file(const char * fname) {
   FILE *f = fopen(fname, "rb");
   long size;
 
@@ -52,7 +61,7 @@ bytefile *read_file(char *fname) {
   if (file->stringtab_size < 0 ||
       file->global_area_size < 0 ||
       file->public_symbols_number < 0 ||
-      file->stringtab_size + file->public_symbols_number * 2 * sizeof(int) > size
+      (long) file->stringtab_size + file->public_symbols_number * 2 * sizeof(int32_t) > size
   ) {
     failure("*** FAILURE: invalid file format.\n");
   }
@@ -83,9 +92,9 @@ bytefile *read_file(char *fname) {
   return file;
 }
 
-static void disassemble(FILE *f, bytefile *bf);
+static void disassemble(FILE *f, const bytefile *bf);
 
-void dump_file(FILE *f, bytefile *bf)
+void dump_file(FILE *f, const bytefile *bf)
 {
   int i;
 
@@ -101,7 +110,7 @@ void dump_file(FILE *f, bytefile *bf)
   disassemble(f, bf);
 }
 
-static void disassemble(FILE *f, bytefile *bf)
+static void disassemble(FILE *f, const bytefile *bf)
 {
 
 #define INT (ip += sizeof(int), *(int *)(ip - sizeof(int)))

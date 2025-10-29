@@ -18,7 +18,7 @@
 
 typedef struct {
   char *string_ptr;          // A pointer to the beginning of the string table
-  int *public_ptr;           // A pointer to the beginning of publics table
+  int32_t *public_ptr;       // A pointer to the beginning of publics table
   char *code_ptr;            // A pointer to the bytecode itself
   aint *global_ptr;          // A pointer to the global area
   aint *stack_ptr;           // A pointer to the stack bottom (stack grows downwards)
@@ -30,12 +30,12 @@ typedef struct {
   char buffer[0];
 } bytefile;
 
-bytefile *read_file(char *fname);
+const bytefile *read_file(const char *fname);
 
-void dump_file(FILE *f, bytefile *bf);
+void dump_file(FILE *f, const bytefile *bf);
 
-char *get_string(bytefile *f, int pos);
+const char *get_string(const bytefile *f, int pos);
 
-void interpret(FILE *f, bytefile *bf);
+void interpret(const bytefile *bf);
 
 #endif //HW2_INTERPRETER_H

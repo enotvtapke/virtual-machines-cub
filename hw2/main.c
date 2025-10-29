@@ -19,7 +19,7 @@ static void interpret_file(char * filename) {
   __gc_init();
   __gc_stack_bottom = (size_t) (f->global_ptr + f->global_area_size + 1);
   __gc_stack_top = (size_t) (f->stack_ptr - 1);
-  interpret(stdout, f);
+  interpret(f);
   free(f);
 }
 
