@@ -15,7 +15,7 @@
 typedef struct {
   char *ip;
   aint *ebp;
-  bytefile *bf;
+  const bytefile *bf;
 } State;
 
 static State state;
@@ -26,7 +26,7 @@ static void print_stack_value(const aint v) {
   if (UNBOXED(v)) {
     DEBUG_LOG("%d", UNBOX(v));
   } else {
-    data * d = TO_DATA(v);
+    const data * d = TO_DATA(v);
     size_t l = LEN(d->data_header);
     // STRING_TAG 0x00000001
     // ARRAY_TAG 0x00000003
@@ -74,42 +74,23 @@ inline static aint pop() {
   return *(ESP - 1);
 }
 
-inline static aint get_global(const unsigned int index) {
+inline static aint * global(const unsigned int index) {
   if (index >= state.bf->global_area_size) {
     failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
   }
-  return state.bf->global_ptr[index];
+  return &state.bf->global_ptr[index];
 }
 
-inline static void set_global(const unsigned int index, const aint value) {
-  if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
-  }
-  state.bf->global_ptr[index] = value;
-}
-
-inline static aint get_local(const unsigned int index) {
+inline static aint * local(const unsigned int index) {
   if (index >= get_locals_num()) {
     failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
   }
-  return *(state.ebp - 3 - index); // - 2 because we saved the number of args between ebp and locals
+  return state.ebp - 3 - index; // - 2 because we saved the number of args between ebp and locals
 }
 
-inline static void set_local(const unsigned int index, const aint value) {
-  if (index >= get_locals_num()) {
-    failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
-  }
-  *(state.ebp - 3 - index) = value;
-}
-
-inline static aint get_arg(const unsigned int index) {
+inline static aint * arg(const unsigned int index) {
   const aint num_args = UNBOX(*(state.ebp - 1));
-  return *(state.ebp + 3 + num_args - 1 - index); // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
-}
-
-inline static void set_arg(const unsigned int index, const aint value) {
-  const aint num_args = UNBOX(*(state.ebp - 1));
-  *(state.ebp + 3 + num_args - 1 - index) = value;
+  return state.ebp + 3 + num_args - 1 - index; // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
 inline static data * safe_retrieve_closure(const aint closure_ptr) {
@@ -121,24 +102,14 @@ inline static data * safe_retrieve_closure(const aint closure_ptr) {
   return closure;
 }
 
-inline static aint get_closure(const unsigned int index) {
+inline static aint * closure(const unsigned int index) {
   const aint closure_ptr = *(state.ebp + 2);
   const data * closure = safe_retrieve_closure(closure_ptr);
   const ptrt captured_vars_num = LEN(closure->data_header) - 1;
   if (index >= captured_vars_num) {
     failure("Closure variable %d out of bounds. Number of vars in closure is %d", index, captured_vars_num);
   }
-  return ((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
-}
-
-inline static void set_closure(const unsigned int index, const aint value) {
-  const aint closure_ptr = *(state.ebp + 2);
-  const data * closure = safe_retrieve_closure(closure_ptr);
-  const ptrt captured_vars_num = LEN(closure->data_header) - 1;
-  if (index >= captured_vars_num) {
-    failure("Closure variable %d out of bounds. Number of vars in closure is %d", index, captured_vars_num);
-  }
-  ((aint *) closure->contents)[1 + index] = value;
+  return &((aint *) closure->contents)[1 + index]; // 1 + because the first arg of every closure is an offset
 }
 
 inline static int read(const unsigned int bytes) {
@@ -224,49 +195,26 @@ enum Instruction {
   BUILTIN_Barray = 4
 };
 
-inline static aint get_var(const char designation, const int index, const char h, const char l) {
+inline static aint * var(const unsigned char designation, const unsigned int index, const unsigned char h, const unsigned char l) {
   switch (designation) {
     case GLOBAL:
       DEBUG_LOG("G(%d)", index);
-      return get_global(index);
+      return global(index);
     case LOCAL:
       DEBUG_LOG("L(%d)", index);
-      return get_local(index);
+      return local(index);
     case ARG:
       DEBUG_LOG("A(%d)", index);
-      return get_arg(index);
+      return arg(index);
     case CLOSURE_VAR:
       DEBUG_LOG("C(%d)", index);
-      return get_closure(index);
+      return closure(index);
     default:
       FAIL;
   }
 }
 
-inline static void set_var(const char designation, const int index, const aint value, const char h, const char l) {
-  switch (designation) {
-    case GLOBAL:
-      DEBUG_LOG("G(%d)=%d", index, value);
-      set_global(index, value);
-      break;
-    case LOCAL:
-      DEBUG_LOG("L(%d)=%d", index, value);
-      set_local(index, value);
-      break;
-    case ARG:
-      DEBUG_LOG("A(%d)=%d", index, value);
-      set_arg(index, value);
-      break;
-    case CLOSURE_VAR:
-      DEBUG_LOG("C(%d)=%d", index, value);
-      set_closure(index, value);
-      break;
-    default:
-      FAIL;
-  }
-}
-
-inline static void eval_binop(char op);
+inline static void eval_binop(unsigned char op);
 
 /* Disassembles the bytecode pool */
 void interpret(const bytefile *bf) {
@@ -303,20 +251,20 @@ void interpret(const bytefile *bf) {
           }
 
           case CONST_STRING: {
-            char * s = STRING;
+            const char * s = STRING;
             DEBUG_LOG("STRING\t%s", s);
             push((aint) Bstring((aint *) &s));
             break;
           }
 
           case MAKE_SEXP: {
-            char * tag = STRING;
+            const char * tag = STRING;
             const unsigned int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
             if (__gc_stack_top + n * sizeof(size_t) > (size_t) state.bf->stack_ptr) {
               failure("Invalid sexpr length");
             }
-            push(LtagHash(tag));
+            push(LtagHash((char *) tag));
             const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
             __gc_stack_top += (n + 1) * sizeof(size_t);
             push(result);
@@ -327,7 +275,6 @@ void interpret(const bytefile *bf) {
           case STI: {
             DEBUG_LOG("STI");
             failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
-            break;
           }
 
           case STA: {
@@ -398,7 +345,7 @@ void interpret(const bytefile *bf) {
       case LD: {
         DEBUG_LOG("LD\t");
         const int index = INT;
-        const aint value = get_var(l, index, h, l);
+        const aint value = *var(l, index, h, l);
         DEBUG_LOG("=%d", value);
         push(value);
         break;
@@ -406,12 +353,11 @@ void interpret(const bytefile *bf) {
       case LDA: {
         DEBUG_LOG("LDA\t");
         failure("Should not happen. Indirect assignments are temporarily prohibited.\n");
-        break;
       }
       case ST: {
         DEBUG_LOG("ST\t");
         const int index = INT;
-        set_var(l, index, *ESP, h, l);
+        *var(l, index, h, l) = *ESP;
         break;
       }
 
@@ -460,7 +406,7 @@ void interpret(const bytefile *bf) {
             for (int i = 1; i < vars_num + 1; i++) {
               const char designation = BYTE;
               const char index = INT;
-              args[i] = get_var(designation, index, h, l);
+              args[i] = *var(designation, index, h, l);
             }
             push((aint) Bclosure(args, BOX(vars_num)));
             break;
@@ -503,10 +449,10 @@ void interpret(const bytefile *bf) {
           }
 
           case TAG: {
-            char * tag = STRING;
+            const char * tag = STRING;
             const int len = INT;
             DEBUG_LOG("TAG\t%s %d", tag, len);
-            push(Btag((void *) pop(), LtagHash(tag), BOX(len)));
+            push(Btag((void *) pop(), LtagHash((char *) tag), BOX(len)));
             break;
           }
 
@@ -523,7 +469,6 @@ void interpret(const bytefile *bf) {
             DEBUG_LOG("FAIL\t%d", line);
             DEBUG_LOG("%d", col);
             failure("Lama failure at (%d, %d)\n", line, col);
-            break;
           }
 
           case LINE: {
@@ -621,7 +566,7 @@ enum Binop {
   ADD, SUB, MUL, DIV, MOD, LT, LTE, GT, GTE, EQ, NEQ, AND, OR
 };
 
-inline static void eval_binop(const char op) {
+inline static void eval_binop(const unsigned char op) {
   void *q = (void *) pop();
   void *p = (void *) pop();
   DEBUG_LOG("\nBinop with args: %ld, %ld", UNBOX(p), UNBOX(q));
