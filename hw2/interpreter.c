@@ -141,14 +141,24 @@ inline static void set_closure(const unsigned int index, const aint value) {
   ((aint *) closure->contents)[1 + index] = value;
 }
 
-inline static void check_code_size() {
-  if (state.ip < state.bf->code_ptr || state.ip >= state.bf->code_ptr + state.bf->code_size) {
-    failure("ip counter is outside of code section\n");
+inline static int read(const unsigned int bytes) {
+  if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
+    failure("When reading %d bytes IP counter %d can move outside of the code section of size\n", bytes, state.ip,
+            state.bf->code_size);
   }
+  state.ip += bytes;
+  return *(int *)(state.ip - bytes);
 }
 
-#define INT (check_code_size(), state.ip += sizeof(int), *(int *)(state.ip - sizeof(int)))
-#define BYTE (check_code_size(), *(state.ip)++)
+inline static void jump(const unsigned int offset) {
+  if (offset >= state.bf->code_size) {
+    failure("Jump with offset %d is outside of code section of size %d\n", offset, state.bf->code_size);
+  }
+  state.ip = state.bf->code_ptr + offset;
+}
+
+#define INT (read(4))
+#define BYTE (read(1))
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
@@ -330,7 +340,7 @@ void interpret(FILE *f, bytefile *bf) {
           case JMP: {
             const int offset = INT;
             DEBUG_LOG("JMP\t0x%.8x", offset);
-            state.ip = bf->code_ptr + offset;
+            jump(offset);
             break;
           }
 
@@ -410,8 +420,7 @@ void interpret(FILE *f, bytefile *bf) {
             DEBUG_LOG("CJMPz\t0x%.8x", offset);
             const aint value = UNBOX(pop());
             if (value == 0) {
-              state.ip = bf->code_ptr + offset;
-              check_code_size();
+              jump(offset);
             }
             break;
           }
@@ -421,8 +430,7 @@ void interpret(FILE *f, bytefile *bf) {
             DEBUG_LOG("CJMPnz\t0x%.8x", offset);
             const aint value = UNBOX(pop());
             if (value != 0) {
-              state.ip = bf->code_ptr + offset;
-              check_code_size();
+              jump(offset);
             }
             break;
           }
