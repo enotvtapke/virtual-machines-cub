@@ -34,7 +34,7 @@ const bytefile *read_file(const char *fname);
 
 void dump_file(FILE *f, const bytefile *bf);
 
-const char *get_string(const bytefile *f, int pos);
+const char *get_string(const bytefile *f, unsigned int pos);
 
 void interpret(const bytefile *bf);
 

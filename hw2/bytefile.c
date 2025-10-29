@@ -8,7 +8,7 @@
 #include "runtime.h"
 
 /* Gets a string from a string table by an index */
-const char * get_string(const bytefile * f, const int pos) {
+const char * get_string(const bytefile * f, const unsigned int pos) {
   if (pos >= f->stringtab_size) {
     failure("*** FAILURE: invalid string index");
   }
@@ -16,7 +16,7 @@ const char * get_string(const bytefile * f, const int pos) {
 }
 
 /* Gets a name for a public symbol */
-const char *get_public_name(const bytefile *f, const int i) {
+const char *get_public_name(const bytefile *f, const unsigned  int i) {
   if (i > f->public_symbols_number) {
     failure("*** FAILURE: invalid public symbol index");
   }
@@ -24,7 +24,7 @@ const char *get_public_name(const bytefile *f, const int i) {
 }
 
 /* Gets an offset for a public symbol */
-int get_public_offset(const bytefile *f, const int i) {
+int get_public_offset(const bytefile *f, const unsigned int i) {
   if (i > f->public_symbols_number) {
     failure("*** FAILURE: invalid public symbol index");
   }
