@@ -311,12 +311,11 @@ void interpret(const bytefile *bf) {
 
           case MAKE_SEXP: {
             char * tag = STRING;
-            const int n = INT;
+            const unsigned int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
-            if (n < 0) {
-              failure("Negative sexp length\n");
+            if (__gc_stack_top + n * sizeof(size_t) > (size_t) state.bf->stack_ptr) {
+              failure("Invalid sexpr length");
             }
-
             push(LtagHash(tag));
             const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
             __gc_stack_top += (n + 1) * sizeof(size_t);
@@ -591,9 +590,9 @@ void interpret(const bytefile *bf) {
             break;
 
           case BUILTIN_Barray: {
-            const int len = INT;
+            const unsigned int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
-            if (len < 0) {
+            if (__gc_stack_top + len * sizeof(size_t) > (size_t) state.bf->stack_ptr) {
               failure("Negative array length\n");
             }
             const aint result = (aint) Barray_reversed(ESP, BOX(len));
