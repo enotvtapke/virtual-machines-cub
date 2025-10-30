@@ -399,7 +399,7 @@ void interpret(const bytefile *bf) {
 
           case MAKE_CLOSURE: {
             const int offset = INT;
-            const int vars_num = INT;
+            const unsigned int vars_num = INT;
             DEBUG_LOG("CLOSURE\t0x%.8x\t%d", offset, vars_num);
             aint args[vars_num + 1];
             args[0] = offset;
@@ -415,8 +415,9 @@ void interpret(const bytefile *bf) {
           case CALLC: {
             const int args_num = INT;
             DEBUG_LOG("CALLC\t%d", args_num);
-
-            // TODO Can be slow. It is better to store the closure as the last argument, not first
+            if (__gc_stack_top + args_num * sizeof(aint) > (size_t) state.bf->stack_ptr) {
+              failure("CALLC have invalid number of arguments %d at %ip", args_num, state.ip);
+            }
             aint args[args_num];
             for (int i = 0; i < args_num; i++) {
               args[i] = pop();
