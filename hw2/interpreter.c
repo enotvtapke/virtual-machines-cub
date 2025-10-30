@@ -401,15 +401,13 @@ void interpret(const bytefile *bf) {
             const int offset = INT;
             const unsigned int vars_num = INT;
             DEBUG_LOG("CLOSURE\t0x%.8x\t%d", offset, vars_num);
-            aint * args = malloc((vars_num + 1) * sizeof(aint));
-            args[0] = offset;
+            *(ESP - vars_num - 1) = offset;
             for (int i = 1; i < vars_num + 1; i++) {
               const char designation = BYTE;
               const char index = INT;
-              args[i] = *var(designation, index, h, l);
+              *(ESP - (vars_num - i + 1)) = *var(designation, index, h, l);
             }
-            push((aint) Bclosure(args, BOX(vars_num)));
-            free(args);
+            push((aint) Bclosure(ESP - vars_num - 1, BOX(vars_num)));
             break;
           }
 
