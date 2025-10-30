@@ -401,7 +401,7 @@ void interpret(const bytefile *bf) {
             const int offset = INT;
             const unsigned int vars_num = INT;
             DEBUG_LOG("CLOSURE\t0x%.8x\t%d", offset, vars_num);
-            aint args[vars_num + 1];
+            aint * args = malloc((vars_num + 1) * sizeof(aint));
             args[0] = offset;
             for (int i = 1; i < vars_num + 1; i++) {
               const char designation = BYTE;
@@ -409,6 +409,7 @@ void interpret(const bytefile *bf) {
               args[i] = *var(designation, index, h, l);
             }
             push((aint) Bclosure(args, BOX(vars_num)));
+            free(args);
             break;
           }
 
