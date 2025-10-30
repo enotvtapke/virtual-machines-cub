@@ -418,17 +418,12 @@ void interpret(const bytefile *bf) {
             if (__gc_stack_top + args_num * sizeof(aint) > (size_t) state.bf->stack_ptr) {
               failure("CALLC have invalid number of arguments %d at %ip", args_num, state.ip);
             }
-            aint args[args_num];
-            for (int i = 0; i < args_num; i++) {
-              args[i] = pop();
+            const aint closure_ptr = *(ESP + args_num);
+            for (int i = args_num - 1; i >= 0; i--) {
+              *(ESP + i + 1) = *(ESP + i);
             }
-            const aint closure_ptr = pop();
-            for (int i = 0; i < args_num; i++) {
-              push(args[i]);
-            }
-            push(closure_ptr);
+            *ESP = closure_ptr;
             const data * closure = safe_retrieve_closure(closure_ptr);
-            // ====
             const aint offset = ((aint *) closure->contents)[0];
             push((aint) state.ip);
             push((aint) state.ebp);
