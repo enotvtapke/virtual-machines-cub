@@ -18,21 +18,6 @@ typedef struct {
 
 static State state;
 
-#define va_start(v,l)	__builtin_va_start(v,l)
-
-_Noreturn static void vfailure (char *s, va_list args) {
-  fprintf(stderr, "*** FAILURE: ");
-  vfprintf(stderr, s, args);
-  exit(255);
-}
-
-_Noreturn static void failure (char *s, ...) {
-  va_list args;
-
-  va_start(args, s);
-  vfailure(s, args);
-}
-
 inline static int read(const unsigned int bytes) {
   if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
     failure("When reading %d bytes IP counter %d can move outside of the code section of size\n", bytes, state.ip,

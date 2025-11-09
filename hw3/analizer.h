@@ -36,4 +36,19 @@ const char *get_string(const bytefile *f, unsigned int pos);
 
 void interpret(const bytefile *bf);
 
+#define va_start(v,l)	__builtin_va_start(v,l)
+
+static void vfailure (char *s, va_list args) {
+  fprintf(stderr, "*** FAILURE: ");
+  vfprintf(stderr, s, args);
+  exit(255);
+}
+
+static void failure (char *s, ...) {
+  va_list args;
+
+  va_start(args, s);
+  vfailure(s, args);
+}
+
 #endif //HW2_INTERPRETER_H

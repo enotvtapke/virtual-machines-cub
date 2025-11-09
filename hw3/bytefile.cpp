@@ -9,21 +9,6 @@
 
 #include "analizer.h"
 
-#define va_start(v,l)	__builtin_va_start(v,l)
-
-_Noreturn static void vfailure (char *s, va_list args) {
-  fprintf(stderr, "*** FAILURE: ");
-  vfprintf(stderr, s, args);
-  exit(255);
-}
-
-_Noreturn static void failure (char *s, ...) {
-  va_list args;
-
-  va_start(args, s);
-  vfailure(s, args);
-}
-
 /* Gets a string from a string table by an index */
 const char * get_string(const bytefile * f, const unsigned int pos) {
   if (pos >= f->stringtab_size) {
@@ -61,7 +46,7 @@ const bytefile *read_file(const char * fname) {
     failure("%s\n", strerror(errno));
   }
 
-  bytefile *file = malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = ftell(f)));
+  bytefile *file = (bytefile *) malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = ftell(f)));
 
   if (file == 0) {
     failure("*** FAILURE: unable to allocate memory.\n");
