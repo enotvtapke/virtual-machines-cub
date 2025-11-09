@@ -1,4 +1,4 @@
-for i in $(find ./regression -name "test01*.bc" | sort);
+for i in $(find ./regression -name "test*.bc" | sort);
 do
   filename=$(basename "$i" .bc)
   ./cmake-build-debug/hw3 "./regression/$filename.bc" "./regression/$filename.lama"
