@@ -9,7 +9,7 @@
 #include <stdio.h>
 
 #define STACK_SIZE 1048576
-// #define DEBUG_PRINT
+#define DEBUG_PRINT
 #ifdef DEBUG_PRINT
   #define DEBUG_LOG(...) fprintf(stdout, __VA_ARGS__)
 #else
@@ -21,7 +21,6 @@ typedef struct {
   int32_t *public_ptr;       // A pointer to the beginning of publics table
   char *code_ptr;            // A pointer to the bytecode itself
   aint *global_ptr;          // A pointer to the global area
-  aint *stack_ptr;           // A pointer to the stack bottom (stack grows downwards)
   unsigned long code_size;            // Code section size in bytes
   unsigned int entrypoint_offset;     // Public symbol "main" offset
   unsigned int stringtab_size;        // The size (in bytes) of the string table

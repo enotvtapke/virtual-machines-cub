@@ -2,10 +2,27 @@
 // Created by enotvtapke on 10/25/25.
 //
 
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "interpreter.h"
-#include "runtime.h"
+
+#define va_start(v,l)	__builtin_va_start(v,l)
+
+_Noreturn static void vfailure (char *s, va_list args) {
+  fprintf(stderr, "*** FAILURE: ");
+  vfprintf(stderr, s, args);
+  exit(255);
+}
+
+_Noreturn static void failure (char *s, ...) {
+  va_list args;
+
+  va_start(args, s);
+  vfailure(s, args);
+}
 
 /* Gets a string from a string table by an index */
 const char * get_string(const bytefile * f, const unsigned int pos) {
@@ -70,11 +87,6 @@ const bytefile *read_file(const char * fname) {
   file->public_ptr = (int *) file->buffer;
   file->code_ptr = &file->string_ptr[file->stringtab_size];
   file->code_size = size - ((size_t) file->code_ptr - (size_t) &file->stringtab_size);
-
-  aint * stack = malloc(sizeof(size_t) + file->global_area_size * sizeof(size_t) + STACK_SIZE * sizeof(aint));
-
-  file->global_ptr = &stack[STACK_SIZE];
-  file->stack_ptr = &stack[STACK_SIZE];
 
   file->entrypoint_offset = -1;
   for (int i = 0; i < file->public_symbols_number; i++) {
