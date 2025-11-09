@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <stdlib.h>
 
+#include <unordered_set>
+#include <map>
+#include <vector>
+
 #include "analizer.h"
 
 #define EMPTY BOX(0)
@@ -17,6 +21,46 @@ typedef struct {
 } State;
 
 static State state;
+
+std::unordered_set<int64_t> basic_blocks_offsets;
+std::map<int64_t, std::vector<int64_t>> cf_graph;
+
+void add_to_cf_graph(const int64_t key, const int64_t value) {
+  auto it = cf_graph.find(key);
+  if (it == cf_graph.end()) {
+    cf_graph[key] = std::vector<int64_t>{value};
+  } else {
+    it->second.push_back(value);
+  }
+}
+
+void print_set(const std::unordered_set<int64_t>& s, const int64_t bf_code_ptr) {
+  printf("{");
+  bool first = true;
+  for (int64_t value : s) {
+    if (!first) {
+      printf(", ");
+    }
+    printf("0x%.8x", value - bf_code_ptr);
+    first = false;
+  }
+  printf("}");
+}
+
+void print_cf_graph(const std::map<int64_t, std::vector<int64_t>>& graph, const int64_t bf_code_ptr) {
+  for (const auto& entry : graph) {
+    printf("  0x%.8x -> {", entry.first - bf_code_ptr);
+    bool first = true;
+    for (const int64_t target : entry.second) {
+      if (!first) {
+        printf(", ");
+      }
+      printf("0x%.8x", target - bf_code_ptr);
+      first = false;
+    }
+    printf("}\n");
+  }
+}
 
 inline static int read(const unsigned int bytes) {
   if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
@@ -94,16 +138,43 @@ enum Instruction {
   BUILTIN_Barray = 4
 };
 
+void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
+  if (used.find(node) != used.end()) {
+    return;
+  }
+
+  used.insert(node);
+  printf("0x%.8x\n", node - (int64_t) state.bf->code_ptr);
+  // interpret(state.bf, CALCULATE_STAT, node);
+
+  auto it = cf_graph.find(node);
+  if (it != cf_graph.end()) {
+    for (int64_t successor : it->second) {
+      dfs(successor, used);
+    }
+  }
+}
+
 /* Disassembles the bytecode pool */
-void interpret(const bytefile *bf) {
+void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypoint_offset) {
   state.ip = bf->code_ptr + bf->entrypoint_offset;
   state.bf = bf;
+
+  basic_blocks_offsets.insert((int64_t) state.ip);
+  int64_t current_block_offset = -1;
 
   #ifdef DEBUG_PRINT
   static const char* const ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
   static const char* const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
   #endif
   do {
+    if (phase == GENERATE_GRAPH && basic_blocks_offsets.find((int64_t) state.ip) != basic_blocks_offsets.end()) {
+      DEBUG_LOG("---\n");
+      current_block_offset = (int64_t) state.ip;
+    }
+    if (phase == CALCULATE_STAT && basic_blocks_offsets.find((int64_t) state.ip) != basic_blocks_offsets.end()) {
+      goto stop;
+    }
     const unsigned char x = BYTE, h = (x & 0xF0) >> 4, l = x & 0x0F;
     DEBUG_LOG("0x%.8x:\t", state.ip - state.bf->code_ptr - 1);
     switch (h) {
@@ -148,12 +219,22 @@ void interpret(const bytefile *bf) {
 
           case JMP: {
             const int offset = INT;
+            if (phase == GENERATE_BLOCKS) {
+              basic_blocks_offsets.insert((int64_t) state.bf->code_ptr + offset);
+              basic_blocks_offsets.insert((int64_t) state.ip);
+            }
+            if (phase == GENERATE_GRAPH) {
+              add_to_cf_graph(current_block_offset, (int64_t) state.bf->code_ptr + offset);
+            }
             DEBUG_LOG("JMP\t0x%.8x", offset);
             break;
           }
 
           case END:
           case RET: {
+            if (phase == GENERATE_BLOCKS) {
+              basic_blocks_offsets.insert((int64_t) state.ip);
+            }
             DEBUG_LOG("END/RET");
             break;
           }
@@ -203,12 +284,28 @@ void interpret(const bytefile *bf) {
         switch (l) {
           case CJMPz: {
             const int64_t offset = INT;
+            if (phase == GENERATE_BLOCKS) {
+              basic_blocks_offsets.insert((int64_t) state.ip);
+              basic_blocks_offsets.insert((int64_t) state.bf->code_ptr + offset);
+            }
+            if (phase == GENERATE_GRAPH) {
+              add_to_cf_graph(current_block_offset, (int64_t) state.ip);
+              add_to_cf_graph(current_block_offset, (int64_t) state.bf->code_ptr + offset);
+            }
             DEBUG_LOG("CJMPz\t0x%.8x", offset);
             break;
           }
 
           case CJMPnz: {
             const int64_t offset = INT;
+            if (phase == GENERATE_BLOCKS) {
+              basic_blocks_offsets.insert((int64_t) state.ip);
+              basic_blocks_offsets.insert((int64_t) state.bf->code_ptr + offset);
+            }
+            if (phase == GENERATE_GRAPH) {
+              add_to_cf_graph(current_block_offset, (int64_t) state.ip);
+              add_to_cf_graph(current_block_offset, (int64_t) state.bf->code_ptr + offset);
+            }
             DEBUG_LOG("CJMPnz\t0x%.8x", offset);
             break;
           }
@@ -217,6 +314,9 @@ void interpret(const bytefile *bf) {
           case CBEGIN: {
             const int args_num = INT;
             const int locals_num = INT;
+            if (basic_blocks_offsets.find((int64_t) state.ip - 8) != basic_blocks_offsets.end()) {
+              failure("ERROR: Begin block is not marked as basic block start\n");
+            }
             DEBUG_LOG("BEGIN\t%d ", args_num);
             DEBUG_LOG("%d", locals_num);
             break;
@@ -238,6 +338,14 @@ void interpret(const bytefile *bf) {
           case CALL: {
             const int offset = INT;
             const int locals_num = INT;
+            if (phase == GENERATE_BLOCKS) {
+              basic_blocks_offsets.insert((int64_t) state.ip);
+              basic_blocks_offsets.insert((int64_t) state.bf->code_ptr + offset);
+            }
+            if (phase == GENERATE_GRAPH) {
+              add_to_cf_graph(current_block_offset, (int64_t) state.ip);
+              add_to_cf_graph(current_block_offset, (int64_t) state.bf->code_ptr + offset);
+            }
             DEBUG_LOG("CALL\t0x%.8x %d", offset, locals_num);
             break;
           }
@@ -335,4 +443,17 @@ void interpret(const bytefile *bf) {
   } while (1);
 stop:
   printf("<done>\n");
+  switch (phase) {
+    case GENERATE_BLOCKS: {
+      print_set(basic_blocks_offsets, (int64_t) state.bf->code_ptr);
+      printf("\n");
+      break;
+    }
+    case GENERATE_GRAPH: {
+      print_cf_graph(cf_graph, (int64_t) state.bf->code_ptr);
+      printf("\n");
+      break;
+    }
+    default: ;
+  }
 }

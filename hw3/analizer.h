@@ -6,6 +6,8 @@
 #define HW2_INTERPRETER_H
 
 #include <stdio.h>
+#include <string>
+#include <unordered_set>
 
 #define STACK_SIZE 1048576
 #define DEBUG_PRINT
@@ -34,17 +36,25 @@ void dump_file(FILE *f, const bytefile *bf);
 
 const char *get_string(const bytefile *f, unsigned int pos);
 
-void interpret(const bytefile *bf);
+enum Phase {
+  GENERATE_BLOCKS,
+  GENERATE_GRAPH,
+  CALCULATE_STAT
+};
+
+void dfs(int64_t node, std::unordered_set<int64_t> &used);
+
+void interpret(const bytefile *bf, Phase phase, unsigned int entrypoint_offset);
 
 #define va_start(v,l)	__builtin_va_start(v,l)
 
-static void vfailure (char *s, va_list args) {
+static void vfailure (const std::string &s, va_list args) {
   fprintf(stderr, "*** FAILURE: ");
-  vfprintf(stderr, s, args);
+  vfprintf(stderr, s.data(), args);
   exit(255);
 }
 
-static void failure (char *s, ...) {
+static void failure (const std::string &s, ...) {
   va_list args;
 
   va_start(args, s);

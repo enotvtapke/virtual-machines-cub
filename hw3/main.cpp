@@ -1,5 +1,6 @@
 /* Lama SM Bytecode interpreter */
 
+#include <cstdint>
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -7,14 +8,18 @@
 
 #include "analizer.h"
 
-#include <dirent.h>
 #include <unistd.h>
+#include <unordered_set>
 
 static void interpret_file(const char * filename) {
   const bytefile *f = read_file(filename);
   dump_file(stdout, f);
   fprintf(stdout, "\n");
-  interpret(f);
+  interpret(f, GENERATE_BLOCKS, -1);
+  interpret(f, GENERATE_GRAPH, -1);
+
+  std::unordered_set<int64_t> used;
+  dfs((int64_t) f->code_ptr + f->entrypoint_offset, used);
   free((bytefile *) f);
 }
 
