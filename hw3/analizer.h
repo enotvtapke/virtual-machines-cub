@@ -46,6 +46,8 @@ void dfs(int64_t node, std::unordered_set<int64_t> &used);
 
 void interpret(const bytefile *bf, Phase phase, unsigned int entrypoint_offset);
 
+void print_statistics();
+
 #define va_start(v,l)	__builtin_va_start(v,l)
 
 static void vfailure (const std::string &s, va_list args) {
