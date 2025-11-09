@@ -1,14 +1,12 @@
-## Virtual machines HW 2. Lama stack machine interpreter
+## Instruction Sequence Analyzer
+Run main.cpp to start the program.
 
-Интерпретатор для байткода стековой машины Lama. Запускать с помощью cmake. 
+Run main.cpp to start the program.
+The analyzer works in three phases:
+1) GENERATE_BLOCKS – creates basic blocks.
+2) GENERATE_GRAPH – builds the control flow graph.
+3) CALCULATE_FREQUENCIES – goes through all reachable blocks in the control flow graph and counts statistics for each instruction (of length 1 and 2).
 
-Функция main принимает два аргумента. Первый аргумент обязательный, должен содержать путь к файлу с байткодом (.bc). 
-Второй аргумент опциональный, должен содержать файл с вводом для программы. Если второй аргумент не передан, ввод будет 
-осуществляться через stdin. В папке regression есть тестовые программы для интерпретации, их можно запустить с помощью 
-`run_tests.sh`. Запустятся все тесты, кроме `Sort.lama`. `Sort.lama` можно запустить вручную, передав программе путь к 
-файлу с байткодом `Sort.bc`.
-
-Все тесты корректности кроме test054 и test803 проходят, потому что для test054 не генерируется байткод, а для test803 не работает рекурсивный интерпретатор.
-
-Написанный интерпретатор исполняет `Sort.lama` за ~2.5 минуты. Рекурсивный интерпретатор `lamac -i` исполняет `Sort.lama` за ~6 минут.
-Интерпретатор стековой машины `lamac -s` исполняет `Sort.lama` ~2 минуты.
+### Output
+The results are shown in descending order:
+Number of instruction occurrences : Instruction
