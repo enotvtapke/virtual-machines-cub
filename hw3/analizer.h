@@ -10,7 +10,7 @@
 #include <unordered_set>
 
 #define STACK_SIZE 1048576
-#define DEBUG_PRINT
+// #define DEBUG_PRINT
 #ifdef DEBUG_PRINT
   #define DEBUG_LOG(...) fprintf(stdout, __VA_ARGS__)
 #else
@@ -37,9 +37,9 @@ void dump_file(FILE *f, const bytefile *bf);
 const char *get_string(const bytefile *f, unsigned int pos);
 
 enum Phase {
-  GENERATE_BLOCKS,
-  GENERATE_GRAPH,
-  CALCULATE_STAT
+  FIND_BASIC_BLOCKS,
+  CALCULATE_CFG,
+  ANALYZE_FREQUENCIES
 };
 
 void dfs(int64_t node, std::unordered_set<int64_t> &used);
