@@ -5,7 +5,6 @@
 #ifndef HW2_INTERPRETER_H
 #define HW2_INTERPRETER_H
 
-#include "runtime_common.h"
 #include <stdio.h>
 
 #define STACK_SIZE 1048576
@@ -20,7 +19,7 @@ typedef struct {
   char *string_ptr;          // A pointer to the beginning of the string table
   int32_t *public_ptr;       // A pointer to the beginning of publics table
   char *code_ptr;            // A pointer to the bytecode itself
-  aint *global_ptr;          // A pointer to the global area
+  int64_t *global_ptr;          // A pointer to the global area
   unsigned long code_size;            // Code section size in bytes
   unsigned int entrypoint_offset;     // Public symbol "main" offset
   unsigned int stringtab_size;        // The size (in bytes) of the string table

@@ -7,8 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include "interpreter.h"
-#include "./runtime/runtime.c"
+#include "analizer.h"
 
 #define EMPTY BOX(0)
 
@@ -18,6 +17,21 @@ typedef struct {
 } State;
 
 static State state;
+
+#define va_start(v,l)	__builtin_va_start(v,l)
+
+_Noreturn static void vfailure (char *s, va_list args) {
+  fprintf(stderr, "*** FAILURE: ");
+  vfprintf(stderr, s, args);
+  exit(255);
+}
+
+_Noreturn static void failure (char *s, ...) {
+  va_list args;
+
+  va_start(args, s);
+  vfailure(s, args);
+}
 
 inline static int read(const unsigned int bytes) {
   if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
@@ -118,7 +132,7 @@ void interpret(const bytefile *bf) {
       case CONST:
         switch (l) {
           case CONST_INT: {
-            const aint value = INT;
+            const int64_t value = INT;
             DEBUG_LOG("CONST\t%d", value);
             break;
           }
@@ -203,13 +217,13 @@ void interpret(const bytefile *bf) {
       case CONTROL:
         switch (l) {
           case CJMPz: {
-            const aint offset = INT;
+            const int64_t offset = INT;
             DEBUG_LOG("CJMPz\t0x%.8x", offset);
             break;
           }
 
           case CJMPnz: {
-            const aint offset = INT;
+            const int64_t offset = INT;
             DEBUG_LOG("CJMPnz\t0x%.8x", offset);
             break;
           }

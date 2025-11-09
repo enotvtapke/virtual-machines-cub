@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "interpreter.h"
+#include "analizer.h"
 
 #define va_start(v,l)	__builtin_va_start(v,l)
 

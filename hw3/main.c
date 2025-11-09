@@ -5,9 +5,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include "gc.h"
-#include "interpreter.h"
-#include "./runtime/runtime.h"
+#include "analizer.h"
 
 #include <dirent.h>
 #include <unistd.h>
@@ -21,7 +19,7 @@ static void interpret_file(const char * filename) {
 }
 
 int main(const int argc, char *argv[]) {
-  if (sizeof(aint) != sizeof(size_t)) {
+  if (sizeof(int64_t) != sizeof(size_t)) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
