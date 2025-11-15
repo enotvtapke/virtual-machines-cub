@@ -14,6 +14,9 @@
 
 #include "analizer.h"
 
+#include <iostream>
+#include <set>
+
 #define EMPTY BOX(0)
 
 typedef struct {
@@ -23,7 +26,7 @@ typedef struct {
 
 static State state;
 
-std::unordered_set<int64_t> basic_blocks_offsets;
+std::set<int64_t> basic_blocks_offsets;
 std::map<int64_t, std::vector<int64_t>> cf_graph;
 
 static auto SEP = " | ";
@@ -38,10 +41,10 @@ void add_to_cf_graph(const int64_t key, const int64_t value) {
   }
 }
 
-void print_set(const std::unordered_set<int64_t>& s, const int64_t bf_code_ptr) {
+void print_set(const std::set<int64_t> &s, const int64_t bf_code_ptr) {
   printf("{");
   bool first = true;
-  for (int64_t value : s) {
+  for (int64_t value: s) {
     if (!first) {
       printf(", ");
     }
@@ -51,11 +54,11 @@ void print_set(const std::unordered_set<int64_t>& s, const int64_t bf_code_ptr) 
   printf("}\n");
 }
 
-void print_cf_graph(const std::map<int64_t, std::vector<int64_t>>& graph, const int64_t bf_code_ptr) {
-  for (const auto&[from, to] : graph) {
+void print_cf_graph(const std::map<int64_t, std::vector<int64_t> > &graph, const int64_t bf_code_ptr) {
+  for (const auto &[from, to]: graph) {
     printf("0x%.8x -> {", from - bf_code_ptr);
     bool first = true;
-    for (const int64_t target : to) {
+    for (const int64_t target: to) {
       if (!first) {
         printf(", ");
       }
@@ -72,7 +75,7 @@ inline static int read(const unsigned int bytes) {
             state.bf->code_size);
   }
   state.ip += bytes;
-  return *(int *)(state.ip - bytes);
+  return *(int *) (state.ip - bytes);
 }
 
 #define INT (read(4))
@@ -91,10 +94,40 @@ void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
 
   auto it = cf_graph.find(node);
   if (it != cf_graph.end()) {
-    for (int64_t successor : it->second) {
+    for (int64_t successor: it->second) {
       dfs(successor, used);
     }
   }
+}
+
+void find_basic_blocks(const bytefile *bytefile) {
+  basic_blocks_offsets.insert((int64_t) bytefile->code_ptr);
+
+  size_t current_offset = bytefile->entrypoint_offset;
+  while (current_offset < bytefile->code_size) {
+    auto instruction = decodeInstruction(bytefile, current_offset);
+    current_offset += instruction.length();
+
+    if (instruction.highTag == CONST && instruction.lowTag == JMP) {
+      size_t offset = instruction.args[0];
+      basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + current_offset);
+      basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + offset);
+    }
+
+    if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)) {
+      basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + current_offset);
+    }
+
+    if (instruction.highTag == CONTROL && (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.lowTag == CJMPnz)) {
+      size_t offset = instruction.args[0];
+      basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + current_offset);
+      basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + offset);
+    }
+  }
+
+  // printf("Basic blocks offsets:\n");
+  // print_set(basic_blocks_offsets, (int64_t) bytefile->code_ptr);
+  // printf("\n");
 }
 
 /* Disassembles the bytecode pool */
@@ -106,8 +139,8 @@ void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypo
   int64_t current_block_offset = -1;
   std::string prev_token;
 
-  static const char* const ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
-  static const char* const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
+  static const char *const ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
+  static const char *const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
   do {
     if (phase == CALCULATE_CFG && basic_blocks_offsets.find((int64_t) state.ip) != basic_blocks_offsets.end()) {
       DEBUG_LOG("---\n");
@@ -140,13 +173,13 @@ void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypo
           }
 
           case CONST_STRING: {
-            const char * s = STRING;
+            const char *s = STRING;
             token = std::string("STRING ") + std::string(s);
             break;
           }
 
           case MAKE_SEXP: {
-            const char * tag = STRING;
+            const char *tag = STRING;
             const unsigned int n = INT;
             token = std::string("SEXP ") + tag + " " + std::to_string(n);
             break;
@@ -157,8 +190,8 @@ void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypo
           }
 
           case STA: {
-              token = "STA";
-              break;
+            token = "STA";
+            break;
           }
 
           case JMP: {
@@ -266,7 +299,8 @@ void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypo
             if (basic_blocks_offsets.find((int64_t) state.ip - 8) != basic_blocks_offsets.end()) {
               failure("ERROR: Begin block is not marked as basic block start\n");
             }
-            token = std::string(l == BEGIN ? "BEGIN " : "CBEGIN ") + std::to_string(args_num) + " " + std::to_string(locals_num);
+            token = std::string(l == BEGIN ? "BEGIN " : "CBEGIN ") + std::to_string(args_num) + " " + std::to_string(
+                      locals_num);
             break;
           }
 
@@ -299,7 +333,7 @@ void interpret(const bytefile *bf, const Phase phase, const unsigned int entrypo
           }
 
           case TAG: {
-            const char * tag = STRING;
+            const char *tag = STRING;
             const int len = INT;
             token = std::string("TAG ") + tag + " " + std::to_string(len);
             break;
@@ -414,13 +448,13 @@ stop:
 }
 
 void print_statistics() {
-  std::vector<std::pair<std::string,long long>> op_list(opcode_freq.begin(), opcode_freq.end());
-  std::ranges::sort(op_list, [](const auto &a, const auto &b){
+  std::vector<std::pair<std::string, long long> > op_list(opcode_freq.begin(), opcode_freq.end());
+  std::ranges::sort(op_list, [](const auto &a, const auto &b) {
     if (a.second != b.second) return a.second > b.second;
     return a.first < b.first;
   });
   printf("Instruction frequencies :\n");
-  for (const auto &[opcodes, freq] : op_list) {
+  for (const auto &[opcodes, freq]: op_list) {
     printf("%lld :\t%s\n", freq, opcodes.c_str());
   }
 }
