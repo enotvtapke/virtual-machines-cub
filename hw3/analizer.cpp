@@ -74,7 +74,10 @@ void traverse(
 
 std::vector<int64_t> find_basic_blocks(const bytefile *const bytefile) {
   std::vector<int64_t> basic_blocks_offsets;
-  basic_blocks_offsets.push_back((int64_t) bytefile->code_ptr);
+  for (int i = 0; i < bytefile->public_symbols_number; i++) {
+    int64_t public_offset = (int64_t) bytefile->code_ptr + get_public_offset(bytefile, i);
+    basic_blocks_offsets.push_back((int64_t) public_offset);
+  }
 
   size_t current_offset = bytefile->entrypoint_offset;
   while (current_offset < bytefile->code_size) {
