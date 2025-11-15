@@ -4,14 +4,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-#include <stdlib.h>
+#include <iostream>
 
 #include "analizer.h"
+#include "shared.h"
 
 #include <unistd.h>
 #include <unordered_set>
 
-static void interpret_file(const char * filename) {
+static void interpret_file(const char *filename) {
   const bytefile *f = read_file(filename);
   dump_file(stdout, f);
   fprintf(stdout, "\n");
@@ -35,9 +36,10 @@ int main(const int argc, char *argv[]) {
       perror("Failed to redirect stdin");
       exit(1);
     }
-
     setbuf(stdin, NULL);
   }
+  const bytefile *f = read_file(argv[1]);
+  dump_file(stdout, f);
   interpret_file(argv[1]);
   return 0;
 }

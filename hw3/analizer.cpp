@@ -80,67 +80,6 @@ inline static int read(const unsigned int bytes) {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
-enum Instruction {
-  // High nibble values (h)
-  BINOP = 0,
-  CONST = 1,
-  LD = 2,
-  LDA = 3,
-  ST = 4,
-  CONTROL = 5,
-  PATT = 6,
-  BUILTIN = 7,
-  STOP = 15,
-
-  // Low nibble values for CONST group (h=1)
-  CONST_INT = 0,
-  CONST_STRING = 1,
-  MAKE_SEXP = 2,
-  STI = 3,
-  STA = 4,
-  JMP = 5,
-  END = 6,
-  RET = 7,
-  DROP = 8,
-  DUP = 9,
-  SWAP = 10,
-  ELEM = 11,
-
-  // Low nibble values for LD/LDA/ST variable locations
-  GLOBAL = 0,
-  LOCAL = 1,
-  ARG = 2,
-  CLOSURE_VAR = 3,
-
-  // Low nibble values for CONTROL group (h=5)
-  CJMPz = 0,
-  CJMPnz = 1,
-  BEGIN = 2,
-  CBEGIN = 3,
-  MAKE_CLOSURE = 4,
-  CALLC = 5,
-  CALL = 6,
-  TAG = 7,
-  MAKE_ARRAY = 8,
-  FAIL_I = 9,
-  LINE = 10,
-
-  // Low nibble values for PATT group (h=6)
-  PATT_STR_EQ = 0,
-  PATT_STRING = 1,
-  PATT_ARRAY = 2,
-  PATT_SEXP = 3,
-  PATT_BOXED = 4,
-  PATT_UNBOXED = 5,
-  PATT_CLOSURE = 6,
-
-  // Low nibble values for BUILTIN group (h=7)
-  BUILTIN_Lread = 0,
-  BUILTIN_Lwrite = 1,
-  BUILTIN_Llength = 2,
-  BUILTIN_Lstring = 3,
-  BUILTIN_Barray = 4
-};
 
 void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
   if (used.find(node) != used.end()) {
@@ -156,12 +95,6 @@ void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
       dfs(successor, used);
     }
   }
-}
-
-static inline std::string hex8(const int v) {
-  char buf[16];
-  snprintf(buf, sizeof(buf), "0x%.8x", v);
-  return {buf};
 }
 
 /* Disassembles the bytecode pool */
