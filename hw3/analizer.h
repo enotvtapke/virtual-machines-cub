@@ -5,11 +5,8 @@
 #ifndef HW2_INTERPRETER_H
 #define HW2_INTERPRETER_H
 
-#include <set>
-#include <stdio.h>
 #include <string>
-#include <unordered_set>
-#include <map>
+#include <vector>
 
 #include "shared.h"
 
@@ -31,14 +28,14 @@ enum Phase {
   ANALYZE_FREQUENCIES
 };
 
-std::set<int64_t> find_basic_blocks(const bytefile *bf);
+std::vector<int64_t> find_basic_blocks(const bytefile * bytefile);
 
-std::map<int64_t, std::vector<int64_t> > calculate_cfg(const bytefile *bytefile, const std::set<int64_t> &basic_blocks_offsets);
+std::vector<std::vector<int64_t>> calculate_cfg(const bytefile *bytefile, const std::vector<int64_t> &basic_blocks_offsets);
 
-void dfs(const bytefile * bf, int64_t node, std::unordered_set<int64_t> &used, const std::map<int64_t, std::vector<int64_t> > &cf_graph,  std::set<int64_t> basic_blocks_offsets);
+void dfs(const bytefile * bf, int64_t node, std::vector<bool> &used, const std::vector<std::vector<int64_t> > &cf_graph,  std::vector<int64_t> basic_blocks_offsets);
 
 void print_statistics();
 
-const char * get_string(const bytefile * f, const unsigned int pos);
+const char * get_string(const bytefile * f, unsigned int pos);
 
 #endif //HW2_INTERPRETER_H

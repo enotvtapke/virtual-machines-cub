@@ -1,5 +1,6 @@
 /* Lama SM Bytecode interpreter */
 
+#include <algorithm>
 #include <cstdint>
 #include <string.h>
 #include <stdio.h>
@@ -12,7 +13,7 @@
 #include <unistd.h>
 #include <unordered_set>
 
-void print_set(const std::set<int64_t> &s, const int64_t bf_code_ptr) {
+void print_set(const std::vector<int64_t> &s, const int64_t bf_code_ptr) {
   printf("{");
   bool first = true;
   for (int64_t value: s) {
@@ -25,18 +26,13 @@ void print_set(const std::set<int64_t> &s, const int64_t bf_code_ptr) {
   printf("}\n");
 }
 
-void print_cf_graph(const std::map<int64_t, std::vector<int64_t> > &graph, const int64_t bf_code_ptr) {
-  for (const auto &[from, to]: graph) {
-    printf("0x%.8x -> {", from - bf_code_ptr);
-    bool first = true;
-    for (const int64_t target: to) {
-      if (!first) {
-        printf(", ");
-      }
-      printf("0x%.8x", target - bf_code_ptr);
-      first = false;
+void print_cf_graph(const  std::vector<std::vector<int64_t>> &graph) {
+  for (int i = 0; i < graph.size(); i++) {
+    std::cout << i << ": ";
+    for (int64_t succ: graph[i]) {
+      std::cout << succ << " ";
     }
-    printf("}\n");
+    std::cout << "\n";
   }
 }
 
@@ -44,18 +40,18 @@ static void interpret_file(const char *filename) {
   const bytefile *bf = read_file(filename);
   dump_file(stdout, bf);
   fprintf(stdout, "\n");
-  const std::set<int64_t> basic_blocks_offsets = find_basic_blocks(bf);
+  const std::vector<int64_t> basic_blocks_offsets = find_basic_blocks(bf);
   printf("Basic blocks offsets:\n");
   print_set(basic_blocks_offsets, (int64_t) bf->code_ptr);
   printf("\n");
 
   auto cf_graph = calculate_cfg(bf, basic_blocks_offsets);
   printf("Control flow graph:\n");
-  print_cf_graph(cf_graph, (int64_t) bf->code_ptr);
+  print_cf_graph(cf_graph);
   printf("\n");
 
-  std::unordered_set<int64_t> used;
-  dfs(bf, (int64_t) bf->code_ptr + bf->entrypoint_offset, used, cf_graph, basic_blocks_offsets);
+  std::vector used(basic_blocks_offsets.size(), false);
+  dfs(bf, 0, used, cf_graph, basic_blocks_offsets);
   print_statistics();
   free((bytefile *) bf);
 }
