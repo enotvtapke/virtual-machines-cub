@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 static void vfailure (const std::string &s, va_list args) {
   fprintf(stderr, "*** FAILURE: ");
@@ -42,6 +43,12 @@ static std::string hex8(const int v) {
   snprintf(buf, sizeof(buf), "0x%.8x", v);
   return {buf};
 }
+
+/* Gets an offset for a public symbol */
+int get_public_offset(const bytefile *f, unsigned int i);
+
+int64_t index_of(const std::vector<int64_t> &basic_blocks_offsets, int64_t value);
+
 
 enum InstructionTag {
   // High nibble values (h)

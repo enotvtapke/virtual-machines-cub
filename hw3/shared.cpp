@@ -107,3 +107,13 @@ Instruction decodeInstruction(const bytefile *bf, const unsigned int entrypoint_
   }
   throw std::logic_error("Unreachable");
 }
+
+int64_t index_of(const std::vector<int64_t> &basic_blocks_offsets, int64_t value) {
+  auto it = std::lower_bound(basic_blocks_offsets.begin(), basic_blocks_offsets.end(), value);
+
+  if (it == basic_blocks_offsets.end() || *it != value) {
+    throw std::runtime_error("Element not found in basic_blocks_offsets " + std::to_string(value));
+  }
+
+  return it - basic_blocks_offsets.begin();
+}

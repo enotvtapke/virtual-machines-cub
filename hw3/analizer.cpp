@@ -108,16 +108,6 @@ std::vector<int64_t> find_basic_blocks(const bytefile *const bytefile) {
   return basic_blocks_offsets;
 }
 
-int64_t index_of(const std::vector<int64_t> &basic_blocks_offsets, int64_t value) {
-  auto it = std::lower_bound(basic_blocks_offsets.begin(), basic_blocks_offsets.end(), value);
-
-  if (it == basic_blocks_offsets.end() || *it != value) {
-    throw std::runtime_error("Element not found in basic_blocks_offsets");
-  }
-
-  return it - basic_blocks_offsets.begin();
-}
-
 std::vector<std::vector<int64_t> > calculate_cfg(
   const bytefile *bytefile,
   const std::vector<int64_t> &basic_blocks_offsets
