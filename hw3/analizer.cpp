@@ -83,13 +83,29 @@ inline static int read(const unsigned int bytes) {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
+void analyze_frequencies(const bytefile * const bytefile, const unsigned int entrypoint_offset) {
+  int64_t current_offset = entrypoint_offset;
+  std::string prev_token = "";
+  do {
+    auto instruction = decodeInstruction(bytefile, current_offset);
+    current_offset += instruction.length();
+
+    std::string token = instruction.to_string(bytefile);
+
+    opcode_freq[token]++;
+    if (!prev_token.empty()) opcode_freq[prev_token + SEP + token]++;
+    prev_token = token;
+  } while (!basic_blocks_offsets.contains((int64_t) bytefile->code_ptr + current_offset));
+}
+
 void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
   if (used.find(node) != used.end()) {
     return;
   }
 
   used.insert(node);
-  interpret(state.bf, ANALYZE_FREQUENCIES, node - (int64_t) state.bf->code_ptr);
+  // interpret(state.bf, ANALYZE_FREQUENCIES, node - (int64_t) state.bf->code_ptr);
+  analyze_frequencies(state.bf, node - (int64_t) state.bf->code_ptr);
 
   auto it = cf_graph.find(node);
   if (it != cf_graph.end()) {
