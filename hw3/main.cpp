@@ -51,7 +51,7 @@ static void interpret_file(const char *filename) {
   printf("\n");
 
   std::vector used(basic_blocks_offsets.size(), false);
-  dfs(bf, 0, used, cf_graph, basic_blocks_offsets);
+  traverse(bf, 0, used, cf_graph, basic_blocks_offsets);
   print_statistics();
   free((bytefile *) bf);
 }

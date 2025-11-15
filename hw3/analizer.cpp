@@ -8,7 +8,7 @@
 
 #include <unordered_set>
 #include <unordered_map>
-#include <map>
+#include <queue>
 #include <vector>
 #include <algorithm>
 
@@ -46,18 +46,29 @@ void analyze_frequencies(
   }
 }
 
-void dfs(
-  const bytefile *bf, const int64_t node,
+void traverse(
+  const bytefile *bf, const int64_t start_node,
   std::vector<bool> &used,
-  const std::vector<std::vector<int64_t> > &cf_graph,
-  std::vector<int64_t> basic_blocks_offsets
+  const std::vector<std::vector<int64_t>> &cf_graph,
+  const std::vector<int64_t>& basic_blocks_offsets
 ) {
-  if (used[node]) return;
+  std::vector<int64_t> q;
 
-  used[node] = true;
-  analyze_frequencies(bf, basic_blocks_offsets[node] - (int64_t) bf->code_ptr, basic_blocks_offsets[node + 1]);
-  for (int64_t successor: cf_graph[node]) {
-    dfs(bf, successor, used, cf_graph, basic_blocks_offsets);
+  q.push_back(start_node);
+  used[start_node] = true;
+
+  while (!q.empty()) {
+    int64_t node = q.back();
+    q.pop_back();
+
+    analyze_frequencies(bf, basic_blocks_offsets[node] - (int64_t)bf->code_ptr, basic_blocks_offsets[node + 1]);
+
+    for (int64_t successor : cf_graph[node]) {
+      if (!used[successor]) {
+        used[successor] = true;
+        q.push_back(successor);
+      }
+    }
   }
 }
 
