@@ -5,9 +5,11 @@
 #ifndef HW2_INTERPRETER_H
 #define HW2_INTERPRETER_H
 
+#include <set>
 #include <stdio.h>
 #include <string>
 #include <unordered_set>
+#include <map>
 
 #include "shared.h"
 
@@ -29,13 +31,11 @@ enum Phase {
   ANALYZE_FREQUENCIES
 };
 
-void find_basic_blocks(const bytefile *bf);
+std::set<int64_t> find_basic_blocks(const bytefile *bf);
 
-void calculate_cfg(const bytefile *bytefile);
+std::map<int64_t, std::vector<int64_t> > calculate_cfg(const bytefile *bytefile, const std::set<int64_t> &basic_blocks_offsets);
 
-void dfs(int64_t node, std::unordered_set<int64_t> &used);
-
-void interpret(const bytefile *bf, Phase phase, unsigned int entrypoint_offset);
+void dfs(const bytefile * bf, int64_t node, std::unordered_set<int64_t> &used, const std::map<int64_t, std::vector<int64_t> > &cf_graph,  std::set<int64_t> basic_blocks_offsets);
 
 void print_statistics();
 

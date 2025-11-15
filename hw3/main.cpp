@@ -12,18 +12,52 @@
 #include <unistd.h>
 #include <unordered_set>
 
+void print_set(const std::set<int64_t> &s, const int64_t bf_code_ptr) {
+  printf("{");
+  bool first = true;
+  for (int64_t value: s) {
+    if (!first) {
+      printf(", ");
+    }
+    printf("0x%.8x", value - bf_code_ptr);
+    first = false;
+  }
+  printf("}\n");
+}
+
+void print_cf_graph(const std::map<int64_t, std::vector<int64_t> > &graph, const int64_t bf_code_ptr) {
+  for (const auto &[from, to]: graph) {
+    printf("0x%.8x -> {", from - bf_code_ptr);
+    bool first = true;
+    for (const int64_t target: to) {
+      if (!first) {
+        printf(", ");
+      }
+      printf("0x%.8x", target - bf_code_ptr);
+      first = false;
+    }
+    printf("}\n");
+  }
+}
+
 static void interpret_file(const char *filename) {
-  const bytefile *f = read_file(filename);
-  dump_file(stdout, f);
+  const bytefile *bf = read_file(filename);
+  dump_file(stdout, bf);
   fprintf(stdout, "\n");
-  // interpret(f, FIND_BASIC_BLOCKS, -1);
-  find_basic_blocks(f);
-  // interpret(f, CALCULATE_CFG, -1);
-  calculate_cfg(f);
+  const std::set<int64_t> basic_blocks_offsets = find_basic_blocks(bf);
+  printf("Basic blocks offsets:\n");
+  print_set(basic_blocks_offsets, (int64_t) bf->code_ptr);
+  printf("\n");
+
+  auto cf_graph = calculate_cfg(bf, basic_blocks_offsets);
+  printf("Control flow graph:\n");
+  print_cf_graph(cf_graph, (int64_t) bf->code_ptr);
+  printf("\n");
+
   std::unordered_set<int64_t> used;
-  dfs((int64_t) f->code_ptr + f->entrypoint_offset, used);
+  dfs(bf, (int64_t) bf->code_ptr + bf->entrypoint_offset, used, cf_graph, basic_blocks_offsets);
   print_statistics();
-  free((bytefile *) f);
+  free((bytefile *) bf);
 }
 
 int main(const int argc, char *argv[]) {
