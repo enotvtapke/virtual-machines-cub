@@ -31,6 +31,8 @@ enum Phase {
 
 void find_basic_blocks(const bytefile *bf);
 
+void calculate_cfg(const bytefile *bytefile);
+
 void dfs(int64_t node, std::unordered_set<int64_t> &used);
 
 void interpret(const bytefile *bf, Phase phase, unsigned int entrypoint_offset);

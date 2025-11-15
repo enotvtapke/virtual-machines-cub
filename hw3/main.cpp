@@ -18,7 +18,8 @@ static void interpret_file(const char *filename) {
   fprintf(stdout, "\n");
   // interpret(f, FIND_BASIC_BLOCKS, -1);
   find_basic_blocks(f);
-  interpret(f, CALCULATE_CFG, -1);
+  // interpret(f, CALCULATE_CFG, -1);
+  calculate_cfg(f);
   std::unordered_set<int64_t> used;
   dfs((int64_t) f->code_ptr + f->entrypoint_offset, used);
   print_statistics();

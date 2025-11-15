@@ -27,7 +27,7 @@ typedef struct {
 static State state;
 
 std::set<int64_t> basic_blocks_offsets;
-std::map<int64_t, std::vector<int64_t>> cf_graph;
+std::map<int64_t, std::vector<int64_t> > cf_graph;
 
 static auto SEP = " | ";
 static std::unordered_map<std::string, long long> opcode_freq;
@@ -83,7 +83,6 @@ inline static int read(const unsigned int bytes) {
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
-
 void dfs(const int64_t node, std::unordered_set<int64_t> &used) {
   if (used.find(node) != used.end()) {
     return;
@@ -118,16 +117,47 @@ void find_basic_blocks(const bytefile *bytefile) {
       basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + current_offset);
     }
 
-    if (instruction.highTag == CONTROL && (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.lowTag == CJMPnz)) {
+    if (instruction.highTag == CONTROL &&
+        (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.lowTag == CJMPnz)
+    ) {
       size_t offset = instruction.args[0];
       basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + current_offset);
       basic_blocks_offsets.insert((int64_t) bytefile->code_ptr + offset);
     }
   }
 
-  // printf("Basic blocks offsets:\n");
-  // print_set(basic_blocks_offsets, (int64_t) bytefile->code_ptr);
-  // printf("\n");
+  printf("Basic blocks offsets:\n");
+  print_set(basic_blocks_offsets, (int64_t) bytefile->code_ptr);
+  printf("\n");
+}
+
+void calculate_cfg(const bytefile *bytefile) {
+  state.bf = bytefile;
+  int64_t current_block_offset = -1;
+  size_t current_offset = bytefile->entrypoint_offset;
+  while (current_offset < bytefile->code_size) {
+    if (basic_blocks_offsets.find((int64_t) bytefile->code_ptr + current_offset) != basic_blocks_offsets.end()) {
+      DEBUG_LOG("---\n");
+      current_block_offset = (int64_t) bytefile->code_ptr + current_offset;
+    }
+    auto instruction = decodeInstruction(bytefile, current_offset);
+    current_offset += instruction.length();
+
+    if (instruction.highTag == CONST && instruction.lowTag == JMP) {
+      size_t offset = instruction.args[0];
+      add_to_cf_graph(current_block_offset, (int64_t) bytefile->code_ptr + offset);
+    }
+
+    if (instruction.highTag == CONTROL && (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.lowTag == CJMPnz)) {
+      size_t offset = instruction.args[0];
+      add_to_cf_graph(current_block_offset, (int64_t) bytefile->code_ptr + current_offset);
+      add_to_cf_graph(current_block_offset, (int64_t) bytefile->code_ptr + offset);
+    }
+  }
+
+  printf("Control flow graph:\n");
+  print_cf_graph(cf_graph, (int64_t) bytefile->code_ptr);
+  printf("\n");
 }
 
 /* Disassembles the bytecode pool */
