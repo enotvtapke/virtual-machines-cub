@@ -39,7 +39,7 @@ void traverse(
   const std::vector<int64_t>& basic_blocks_offsets
 );
 
-void print_statistics();
+void print_statistics(const bytefile * bf);
 
 const char * get_string(const bytefile * f, unsigned int pos);
 

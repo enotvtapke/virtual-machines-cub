@@ -19,38 +19,39 @@
 
 #define EMPTY BOX(0)
 
-static auto SEP = " | ";
-static std::unordered_map<std::string, long long> opcode_freq;
 
 #define INT (read(4))
 #define BYTE (read(1))
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
 
+std::vector<Instruction> instructions;
+std::vector<std::pair<Instruction, Instruction> > instructionPairs;
+
 void analyze_frequencies(
   const bytefile *const bytefile,
   const unsigned int entrypoint_offset,
   const int64_t basic_block_end
 ) {
-  int64_t current_offset = entrypoint_offset;
-  std::string prev_token = "";
-  while (basic_block_end > (int64_t) bytefile->code_ptr + current_offset) {
-    auto instruction = decodeInstruction(bytefile, current_offset);
+  size_t current_offset = entrypoint_offset;
+  std::optional<Instruction> prev_token = std::nullopt;
+  while (basic_block_end > reinterpret_cast<int64_t>(bytefile->code_ptr) + current_offset) {
+    Instruction instruction = decodeInstruction(bytefile, current_offset);
     current_offset += instruction.length();
 
-    std::string token = instruction.to_string(bytefile);
-
-    opcode_freq[token]++;
-    if (!prev_token.empty()) opcode_freq[prev_token + SEP + token]++;
-    prev_token = token;
+    instructions.push_back(instruction);
+    if (prev_token.has_value()) {
+      instructionPairs.emplace_back(*prev_token, instruction);
+    }
+    prev_token = instruction;
   }
 }
 
 void traverse(
   const bytefile *bf, const int64_t start_node,
   std::vector<bool> &used,
-  const std::vector<std::vector<int64_t>> &cf_graph,
-  const std::vector<int64_t>& basic_blocks_offsets
+  const std::vector<std::vector<int64_t> > &cf_graph,
+  const std::vector<int64_t> &basic_blocks_offsets
 ) {
   std::vector<int64_t> q;
 
@@ -61,9 +62,9 @@ void traverse(
     int64_t node = q.back();
     q.pop_back();
 
-    analyze_frequencies(bf, basic_blocks_offsets[node] - (int64_t)bf->code_ptr, basic_blocks_offsets[node + 1]);
+    analyze_frequencies(bf, basic_blocks_offsets[node] - (int64_t) bf->code_ptr, basic_blocks_offsets[node + 1]);
 
-    for (int64_t successor : cf_graph[node]) {
+    for (int64_t successor: cf_graph[node]) {
       if (!used[successor]) {
         used[successor] = true;
         q.push_back(successor);
@@ -145,14 +146,64 @@ std::vector<std::vector<int64_t> > calculate_cfg(
   return cf_graph;
 }
 
-void print_statistics() {
-  std::vector<std::pair<std::string, long long> > op_list(opcode_freq.begin(), opcode_freq.end());
-  std::ranges::sort(op_list, [](const auto &a, const auto &b) {
-    if (a.second != b.second) return a.second > b.second;
-    return a.first < b.first;
+template<typename T>
+std::vector<std::pair<T, int>> count_occurrences(std::vector<T> vec) {
+  std::sort(vec.begin(), vec.end());
+
+  std::vector<std::pair<T, int>> result;
+
+  if (vec.empty()) {
+    return result;
+  }
+
+  T current = vec[0];
+  int count = 1;
+
+  for (size_t i = 1; i < vec.size(); i++) {
+    if (vec[i] == current) {
+      count++;
+    } else {
+      result.push_back({current, count});
+      current = vec[i];
+      count = 1;
+    }
+  }
+  result.push_back({current, count});
+
+  return result;
+}
+
+void print_statistics(const bytefile * const bf) {
+  auto a = count_occurrences(instructions);
+  instructions.clear();
+  auto b = count_occurrences(instructionPairs);
+  instructionPairs.clear();
+
+  std::ranges::sort(a, [](const auto& x, const auto& y) {
+    return x.second > y.second;
   });
-  printf("Instruction frequencies :\n");
-  for (const auto &[opcodes, freq]: op_list) {
-    printf("%lld :\t%s\n", freq, opcodes.c_str());
+  std::ranges::sort(b, [](const auto& x, const auto& y) {
+    return x.second > y.second;
+  });
+
+  size_t i = 0, j = 0;
+  while (i < a.size() && j < b.size()) {
+    if (a[i].second >= b[j].second) {
+      printf("%d :\t%s\n", a[i].second, a[i].first.to_string(bf).c_str());
+      i++;
+    } else {
+      printf("%d :\t%s\n", b[j].second, (b[j].first.first.to_string(bf) + " | " + b[j].first.second.to_string(bf)).c_str());
+      j++;
+    }
+  }
+
+  while (i < a.size()) {
+    printf("%d :\t%s\n", a[i].second, a[i].first.to_string(bf).c_str());
+    i++;
+  }
+
+  while (j < b.size()) {
+    printf("%d :\t%s\n", b[j].second, (b[j].first.first.to_string(bf) + " | " + b[j].first.second.to_string(bf)).c_str());
+    j++;
   }
 }

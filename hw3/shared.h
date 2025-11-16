@@ -5,7 +5,7 @@
 #include <vector>
 #include <stdexcept>
 
-static void vfailure (const std::string &s, va_list args) {
+static void vfailure(const std::string &s, va_list args) {
   fprintf(stderr, "*** FAILURE: ");
   vfprintf(stderr, s.data(), args);
   exit(255);
@@ -13,7 +13,7 @@ static void vfailure (const std::string &s, va_list args) {
 
 #define va_start(v,l)	__builtin_va_start(v,l)
 
-static void failure (const std::string &s, ...) {
+static void failure(const std::string &s, ...) {
   va_list args;
 
   va_start(args, s);
@@ -116,15 +116,29 @@ enum InstructionTag {
 };
 
 struct Instruction {
-  const InstructionTag highTag;
-  const InstructionTag lowTag;
-  const std::vector<int32_t> args;
+  InstructionTag highTag;
+  InstructionTag lowTag;
+  std::vector<int32_t> args;
 
   size_t length() const {
     return args.size() * 4 + 1;
   }
 
-  std::string to_string(const bytefile * f) const {
+  bool operator<(const Instruction &other) const {
+    if (highTag != other.highTag) {
+      return highTag < other.highTag;
+    }
+    if (lowTag != other.lowTag) {
+      return lowTag < other.lowTag;
+    }
+    return args < other.args;
+  }
+
+  bool operator==(const Instruction &other) const {
+    return highTag == other.highTag && lowTag == other.lowTag && args == other.args;
+  }
+
+  std::string to_string(const bytefile *f) const {
     static const char *const ops[] = {"+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==", "!=", "&&", "!!"};
     static const char *const pats[] = {"=str", "#string", "#array", "#sexp", "#ref", "#val", "#fun"};
     static const char *const lds[] = {"LD", "LDA", "ST"};

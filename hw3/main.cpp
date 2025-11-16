@@ -56,7 +56,7 @@ static void interpret_file(const char *filename) {
     int64_t public_offset = (int64_t) bf->code_ptr + get_public_offset(bf, i);
     traverse(bf, index_of(basic_blocks_offsets, public_offset), used, cf_graph, basic_blocks_offsets);
   }
-  print_statistics();
+  print_statistics(bf);
   free((bytefile *) bf);
 }
 
