@@ -1,13 +1,8 @@
 ## Instruction Sequence Analyzer
-Run main.cpp to start the program.
-
-The analyzer works in three phases:
-1) `FIND_BASIC_BLOCKS` – creates basic blocks.
-2) `CALCULATE_CFG` – builds the control flow graph.
-3) `ANALYZE_FREQUENCIES` – goes through all reachable blocks in the control flow graph and counts statistics for each instruction (of length 1 and 2).
+Run main.cpp to start the program. Program takes a file path with bytecode as an argument.
 
 ### Output
-The program prints offsets of the basic blocks and control flow graph where each node is the basic block offset.  
+The program prints offsets of the basic blocks.  
 Then it prints the statistics for each idiom of length 1 and 2 in the following format:  
 `Number of idiom occurrences` : `idiom`
 
