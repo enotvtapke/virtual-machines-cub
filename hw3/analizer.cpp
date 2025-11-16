@@ -48,26 +48,22 @@ void analyze_frequencies(
 }
 
 void traverse(
-  const bytefile *bf, const int64_t start_node,
+  const bytefile *bf,
   std::vector<bool> &used,
   const std::vector<std::vector<int64_t> > &cf_graph,
-  const std::vector<int64_t> &basic_blocks_offsets
+  const std::vector<int64_t> &basic_blocks_offsets,
+  std::vector<int64_t> & stack
 ) {
-  std::vector<int64_t> q;
-
-  q.push_back(start_node);
-  used[start_node] = true;
-
-  while (!q.empty()) {
-    int64_t node = q.back();
-    q.pop_back();
+  while (!stack.empty()) {
+    int64_t node = stack.back();
+    stack.pop_back();
 
     analyze_frequencies(bf, basic_blocks_offsets[node] - (int64_t) bf->code_ptr, basic_blocks_offsets[node + 1]);
 
     for (int64_t successor: cf_graph[node]) {
       if (!used[successor]) {
         used[successor] = true;
-        q.push_back(successor);
+        stack.push_back(successor);
       }
     }
   }

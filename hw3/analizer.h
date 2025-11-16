@@ -33,10 +33,11 @@ std::vector<int64_t> find_basic_blocks(const bytefile * bytefile);
 std::vector<std::vector<int64_t>> calculate_cfg(const bytefile *bytefile, const std::vector<int64_t> &basic_blocks_offsets);
 
 void traverse(
-  const bytefile *bf, const int64_t start_node,
+  const bytefile *bf,
   std::vector<bool> &used,
   const std::vector<std::vector<int64_t>> &cf_graph,
-  const std::vector<int64_t>& basic_blocks_offsets
+  const std::vector<int64_t>& basic_blocks_offsets,
+  std::vector<int64_t> & stack
 );
 
 void print_statistics(const bytefile * bf);

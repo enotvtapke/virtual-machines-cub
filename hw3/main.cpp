@@ -51,11 +51,11 @@ static void interpret_file(const char *filename) {
   printf("\n");
 
   std::vector used(basic_blocks_offsets.size(), false);
-
+  std::vector<int64_t> public_symbols_offsets(bf->public_symbols_number);
   for (int i = 0; i < bf->public_symbols_number; i++) {
-    int64_t public_offset = (int64_t) bf->code_ptr + get_public_offset(bf, i);
-    traverse(bf, index_of(basic_blocks_offsets, public_offset), used, cf_graph, basic_blocks_offsets);
+    public_symbols_offsets[i] = index_of(basic_blocks_offsets, (int64_t) bf->code_ptr + get_public_offset(bf, i));
   }
+  traverse(bf, used, cf_graph, basic_blocks_offsets, public_symbols_offsets);
   print_statistics(bf);
   free((bytefile *) bf);
 }
