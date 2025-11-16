@@ -28,16 +28,12 @@ enum Phase {
   ANALYZE_FREQUENCIES
 };
 
-std::vector<int64_t> find_basic_blocks(const bytefile * bytefile);
-
-std::vector<std::vector<int64_t>> calculate_cfg(const bytefile *bytefile, const std::vector<int64_t> &basic_blocks_offsets);
+std::vector<bool> find_basic_blocks(const bytefile * bytefile);
 
 void traverse(
   const bytefile *bf,
-  std::vector<bool> &used,
-  const std::vector<std::vector<int64_t>> &cf_graph,
-  const std::vector<int64_t>& basic_blocks_offsets,
-  std::vector<int64_t> & stack
+  std::vector<int32_t> & stack,
+  const std::vector<bool> &is_basic_block_start
 );
 
 void print_statistics(const bytefile * bf);

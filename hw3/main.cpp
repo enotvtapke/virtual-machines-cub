@@ -10,52 +10,33 @@
 #include "analizer.h"
 #include "shared.h"
 
-#include <unistd.h>
 #include <unordered_set>
 
-void print_set(const std::vector<int64_t> &s, const int64_t bf_code_ptr) {
+void print_basic_block_starts(const std::vector<bool> &s) {
   printf("{");
-  bool first = true;
-  for (int64_t value: s) {
-    if (!first) {
-      printf(", ");
+  for (int i = 0; i < s.size(); i++) {
+    if (s[i]) {
+      printf("0x%.8x, ", i);
     }
-    printf("0x%.8x", value - bf_code_ptr);
-    first = false;
   }
   printf("}\n");
 }
 
-void print_cf_graph(const  std::vector<std::vector<int64_t>> &graph) {
-  for (int i = 0; i < graph.size(); i++) {
-    std::cout << i << ": ";
-    for (int64_t succ: graph[i]) {
-      std::cout << succ << " ";
-    }
-    std::cout << "\n";
-  }
-}
-
-static void interpret_file(const char *filename) {
+static void analyze_file(const char *filename) {
   const bytefile *bf = read_file(filename);
   dump_file(stdout, bf);
   fprintf(stdout, "\n");
-  const std::vector<int64_t> basic_blocks_offsets = find_basic_blocks(bf);
+
+  const std::vector<bool> is_basic_block_start = find_basic_blocks(bf);
   printf("Basic blocks offsets:\n");
-  print_set(basic_blocks_offsets, (int64_t) bf->code_ptr);
+  print_basic_block_starts(is_basic_block_start);
   printf("\n");
 
-  auto cf_graph = calculate_cfg(bf, basic_blocks_offsets);
-  printf("Control flow graph:\n");
-  print_cf_graph(cf_graph);
-  printf("\n");
-
-  std::vector used(basic_blocks_offsets.size(), false);
-  std::vector<int64_t> public_symbols_offsets(bf->public_symbols_number);
+  std::vector<int32_t> public_symbols_offsets(bf->public_symbols_number);
   for (int i = 0; i < bf->public_symbols_number; i++) {
-    public_symbols_offsets[i] = index_of(basic_blocks_offsets, (int64_t) bf->code_ptr + get_public_offset(bf, i));
+    public_symbols_offsets[i] = get_public_offset(bf, i);
   }
-  traverse(bf, used, cf_graph, basic_blocks_offsets, public_symbols_offsets);
+  traverse(bf, public_symbols_offsets, is_basic_block_start);
   print_statistics(bf);
   free((bytefile *) bf);
 }
@@ -65,17 +46,6 @@ int main(const int argc, char *argv[]) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
-  printf("Interpreting %s\n", argv[1]);
-  if (argc > 2) {
-    // Redirect stdin to the input file
-    if (freopen(argv[2], "r", stdin) == NULL) {
-      perror("Failed to redirect stdin");
-      exit(1);
-    }
-    setbuf(stdin, NULL);
-  }
-  const bytefile *f = read_file(argv[1]);
-  dump_file(stdout, f);
-  interpret_file(argv[1]);
+  analyze_file(argv[1]);
   return 0;
 }
