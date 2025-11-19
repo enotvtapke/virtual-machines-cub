@@ -18,16 +18,12 @@ std::vector<std::pair<Instruction, Instruction> > instructionPairs;
 
 void traverse(
   const bytefile *bf,
-  std::vector<int32_t> & stack,
-  const std::vector<bool> &is_basic_block_start
+  std::vector<int32_t> & stack
 ) {
   std::vector used(bf->code_size, false);
   while (!stack.empty()) {
     const int64_t node = stack.back();
     stack.pop_back();
-    if (used[node]) {
-      continue;
-    }
 
     std::optional<Instruction> prev_token = std::nullopt;
     size_t current_offset = node;
@@ -44,51 +40,23 @@ void traverse(
 
       if (instruction.highTag == CONST && instruction.lowTag == JMP) {
         size_t offset = instruction.args[0];
-        stack.push_back(offset);
+        if (!used[offset]) stack.push_back(offset);
+        break;
       }
 
       if (instruction.highTag == CONTROL && (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.
                                              lowTag == CJMPnz)) {
         size_t offset = instruction.args[0];
-        stack.push_back(offset);
-        stack.push_back(current_offset);
-        used[current_offset] = false;
+        if (!used[offset]) stack.push_back(offset);
+        if (!used[offset]) stack.push_back(current_offset);
+        break;
       }
-    } while (!is_basic_block_start[current_offset]);
+
+      if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)) {
+        break;
+      }
+    } while (true);
   }
-}
-
-std::vector<bool> find_basic_blocks(const bytefile *const bytefile) {
-  std::vector is_basic_block_start(bytefile->code_size, false);
-  for (int i = 0; i < bytefile->public_symbols_number; i++) {
-    is_basic_block_start[get_public_offset(bytefile, i)] = true;
-  }
-
-  size_t current_offset = bytefile->entrypoint_offset;
-  while (current_offset < bytefile->code_size) {
-    auto instruction = decodeInstruction(bytefile, current_offset);
-    current_offset += instruction.length();
-
-    if (instruction.highTag == CONST && instruction.lowTag == JMP) {
-      size_t offset = instruction.args[0];
-      is_basic_block_start[(int64_t) current_offset] = true;
-      is_basic_block_start[(int64_t) offset] = true;
-    }
-
-    if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)) {
-      is_basic_block_start[(int64_t) current_offset] = true;
-    }
-
-    if (instruction.highTag == CONTROL &&
-        (instruction.lowTag == CALL || instruction.lowTag == CJMPz || instruction.lowTag == CJMPnz)
-    ) {
-      size_t offset = instruction.args[0];
-      is_basic_block_start[(int64_t) current_offset] = true;
-      is_basic_block_start[(int64_t) offset] = true;
-    }
-  }
-
-  return is_basic_block_start;
 }
 
 template<typename T>

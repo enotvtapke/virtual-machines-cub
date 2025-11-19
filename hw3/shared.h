@@ -47,9 +47,6 @@ static std::string hex8(const int v) {
 /* Gets an offset for a public symbol */
 int get_public_offset(const bytefile *f, unsigned int i);
 
-int64_t index_of(const std::vector<int64_t> &basic_blocks_offsets, int64_t value);
-
-
 enum InstructionTag {
   // High nibble values (h)
   BINOP = 0,

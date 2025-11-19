@@ -32,8 +32,7 @@ std::vector<bool> find_basic_blocks(const bytefile * bytefile);
 
 void traverse(
   const bytefile *bf,
-  std::vector<int32_t> & stack,
-  const std::vector<bool> &is_basic_block_start
+  std::vector<int32_t> & stack
 );
 
 void print_statistics(const bytefile * bf);
