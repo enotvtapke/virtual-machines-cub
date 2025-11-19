@@ -9,25 +9,25 @@ Then it prints the statistics for each idiom of length 1 and 2 in the following 
 ### Example
 The first 20 most frequent idioms from Sort.bc:
 ```
-40 :	DROP
-35 :	DUP
-25 :	ELEM
-18 :	CONST 1
-15 :	CONST 0
-15 :	CONST 1 | ELEM
-14 :	DROP | DUP
-13 :	DUP | CONST 1
-12 :	DROP | DROP
-10 :	CONST 0 | ELEM
-10 :	DUP | CONST 0
-9 :	ELEM | DROP
-8 :	LD A 0
+25 :	DUP
+25 :	DROP
+16 :	ELEM
+13 :	CONST	0
+11 :	CONST	1
+9 :	DROP | DUP
+8 :	LD	A(0)
+8 :	DUP | CONST	0
+8 :	CONST	0 | ELEM
+8 :	CONST	1 | ELEM
+7 :	DUP | CONST	1
 6 :	END
-5 :	DUP | DUP
-4 :	ELEM | ST L 0
-4 :	JMP 0x0000039d
-4 :	LD L 0
-4 :	SEXP cons 2
-4 :	ST L 0
+6 :	DROP | DROP
+5 :	ELEM | DROP
+4 :	DUP | DUP
+3 :	LD	L(1)
+3 :	TAG	cons 2
+3 :	CALL	0x00000202 1
+3 :	BINOP	==
+3 :	DUP | TAG	cons 2
 ...
 ```
