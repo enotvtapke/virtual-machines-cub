@@ -5,7 +5,6 @@
 #include <errno.h>
 #include <iostream>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "analizer.h"
@@ -20,7 +19,7 @@ const char * get_string(const bytefile * f, const unsigned int pos) {
 
 /* Gets a name for a public symbol */
 const char *get_public_name(const bytefile *f, const unsigned  int i) {
-  if (i > f->public_symbols_number) {
+  if (i >= f->public_symbols_number) {
     failure("*** FAILURE: invalid public symbol index");
   }
   return get_string(f, f->public_ptr[i * 2]);
@@ -28,7 +27,7 @@ const char *get_public_name(const bytefile *f, const unsigned  int i) {
 
 /* Gets an offset for a public symbol */
 int get_public_offset(const bytefile *f, const unsigned int i) {
-  if (i > f->public_symbols_number) {
+  if (i >= f->public_symbols_number) {
     failure("*** FAILURE: invalid public symbol index");
   }
   return f->public_ptr[i * 2 + 1];
