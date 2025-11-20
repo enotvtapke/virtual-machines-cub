@@ -2,10 +2,12 @@
 // Created by enotvtapke on 10/25/25.
 //
 
+#include <climits>
 #include <errno.h>
 #include <iostream>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include "analizer.h"
 
@@ -46,6 +48,11 @@ const bytefile *read_file(const char * fname) {
     failure("%s\n", strerror(errno));
   }
 
+  struct stat st;
+  stat(fname, &st);
+  if (st.st_size > LONG_MAX)
+    failure("Bytecode file too large: %lld", st.st_size);
+
   bytefile *file = (bytefile *) malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = ftell(f)));
 
   if (file == 0) {
@@ -73,6 +80,7 @@ const bytefile *read_file(const char * fname) {
   file->code_ptr = &file->string_ptr[file->stringtab_size];
   file->code_size = size - ((size_t) file->code_ptr - (size_t) &file->stringtab_size);
 
+  *(file->code_ptr - 1) = '\0';
   file->entrypoint_offset = -1;
   for (int i = 0; i < file->public_symbols_number; i++) {
     if (strcmp(get_public_name(file, i), "main") == 0) {
