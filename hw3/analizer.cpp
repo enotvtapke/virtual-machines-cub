@@ -1,7 +1,3 @@
-//
-// Created by enotvtapke on 10/25/25.
-//
-
 #include <cstring>
 #include <string>
 #include <cstdio>
@@ -13,8 +9,12 @@
 
 #include <iostream>
 
-std::vector<Instruction> instructions;
-std::vector<std::pair<Instruction, Instruction> > instructionPairs;
+struct __attribute__((packed)) InstructionView {
+  int32_t offset;
+  int8_t length;
+};
+
+std::vector<InstructionView> instructionViews;
 
 void traverse(
   const bytefile *bf,
@@ -25,22 +25,24 @@ void traverse(
     const int64_t node = stack.back();
     stack.pop_back();
 
-    std::optional<Instruction> prev_token = std::nullopt;
+    int32_t prev_offset = -1;
     size_t current_offset = node;
     do {
       auto instruction = decodeInstruction(bf, current_offset);
       used[current_offset] = true;
-      current_offset += instruction.length();
+      size_t length = instruction.length();
+      instructionViews.push_back({(int32_t) current_offset, (int8_t) length});
+      current_offset += length;
 
-      instructions.push_back(instruction);
-      if (prev_token.has_value()) {
-        instructionPairs.emplace_back(*prev_token, instruction);
+      if (prev_offset != -1) {
+        instructionViews.push_back({prev_offset , (int8_t) (current_offset - prev_offset)});
       }
-      prev_token = instruction;
+      prev_offset = current_offset - length;
 
       if (instruction.highTag == CONST && instruction.lowTag == JMP) {
         size_t offset = instruction.args[0];
         if (!used[offset]) stack.push_back(offset);
+        prev_offset = -1;
         break;
       }
 
@@ -49,10 +51,12 @@ void traverse(
         size_t offset = instruction.args[0];
         if (!used[offset]) stack.push_back(offset);
         if (!used[offset]) stack.push_back(current_offset);
+        prev_offset = -1;
         break;
       }
 
       if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)) {
+        prev_offset = -1;
         break;
       }
     } while (true);
@@ -60,8 +64,8 @@ void traverse(
 }
 
 template<typename T>
-std::vector<std::pair<T, int>> count_occurrences(std::vector<T> vec) {
-  std::sort(vec.begin(), vec.end());
+std::vector<std::pair<T, int>> count_occurrences(std::vector<T> vec, auto comparator) {
+  std::sort(vec.begin(), vec.end(), comparator);
 
   std::vector<std::pair<T, int>> result;
 
@@ -73,7 +77,7 @@ std::vector<std::pair<T, int>> count_occurrences(std::vector<T> vec) {
   int count = 1;
 
   for (size_t i = 1; i < vec.size(); i++) {
-    if (vec[i] == current) {
+    if (!comparator(vec[i], current) && !comparator(current, vec[i])) {
       count++;
     } else {
       result.push_back({current, count});
@@ -87,36 +91,29 @@ std::vector<std::pair<T, int>> count_occurrences(std::vector<T> vec) {
 }
 
 void print_statistics(const bytefile * const bf) {
-  auto instr_occurrences = count_occurrences(instructions);
-  instructions.clear();
-  auto instr_pair_occurrences = count_occurrences(instructionPairs);
-  instructionPairs.clear();
-
-  std::ranges::sort(instr_occurrences, [](const auto& x, const auto& y) {
-    return x.second > y.second;
-  });
-  std::ranges::sort(instr_pair_occurrences, [](const auto& x, const auto& y) {
-    return x.second > y.second;
-  });
-
-  size_t i = 0, j = 0;
-  while (i < instr_occurrences.size() && j < instr_pair_occurrences.size()) {
-    if (instr_occurrences[i].second >= instr_pair_occurrences[j].second) {
-      printf("%d :\t%s\n", instr_occurrences[i].second, instr_occurrences[i].first.to_string(bf).c_str());
-      i++;
-    } else {
-      printf("%d :\t%s\n", instr_pair_occurrences[j].second, (instr_pair_occurrences[j].first.first.to_string(bf) + " | " + instr_pair_occurrences[j].first.second.to_string(bf)).c_str());
-      j++;
+  auto compare = [bf](const InstructionView &i1, const InstructionView &i2) {
+    if (i1.length != i2.length) return i1.length < i2.length;
+    for (int i = 0; i < i1.length; i++) {
+      if ((bf->code_ptr + i1.offset)[i] != (bf->code_ptr + i2.offset)[i]) {
+        return (bf->code_ptr + i1.offset)[i] < (bf->code_ptr + i2.offset)[i];
+      }
     }
-  }
+    return false;
+  };
+  auto instr_views_occurrences = count_occurrences(instructionViews, compare);
+  instructionViews.clear();
 
-  while (i < instr_occurrences.size()) {
-    printf("%d :\t%s\n", instr_occurrences[i].second, instr_occurrences[i].first.to_string(bf).c_str());
-    i++;
-  }
-
-  while (j < instr_pair_occurrences.size()) {
-    printf("%d :\t%s\n", instr_pair_occurrences[j].second, (instr_pair_occurrences[j].first.first.to_string(bf) + " | " + instr_pair_occurrences[j].first.second.to_string(bf)).c_str());
-    j++;
+  std::ranges::sort(instr_views_occurrences, [](const auto& x, const auto& y) {
+    return x.second > y.second;
+  });
+  for (const auto& [instr, count] : instr_views_occurrences) {
+    printf("%d :\t", count);
+    auto decoded_instr = decodeInstruction(bf, instr.offset);
+    printf("%s", decoded_instr.to_string(bf).c_str());
+    const size_t length = decoded_instr.length();
+    if (instr.length != length) {
+      printf(" | %s", decodeInstruction(bf, instr.offset + length).to_string(bf).c_str());
+    }
+    printf("\n");
   }
 }
