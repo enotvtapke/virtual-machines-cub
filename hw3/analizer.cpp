@@ -50,7 +50,7 @@ void traverse(
                                              lowTag == CJMPnz)) {
         size_t offset = instruction.args[0];
         if (!used[offset]) stack.push_back(offset);
-        if (!used[offset]) stack.push_back(current_offset);
+        if (!used[current_offset]) stack.push_back(current_offset);
         prev_offset = -1;
         break;
       }

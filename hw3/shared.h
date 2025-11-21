@@ -5,19 +5,8 @@
 #include <vector>
 #include <stdexcept>
 
-static void vfailure(const std::string &s, va_list args) {
-  fprintf(stderr, "*** FAILURE: ");
-  vfprintf(stderr, s.data(), args);
-  exit(255);
-}
-
-#define va_start(v,l)	__builtin_va_start(v,l)
-
 static void failure(const std::string &s, ...) {
-  va_list args;
-
-  va_start(args, s);
-  vfailure(s, args);
+  throw std::runtime_error(s);
 }
 
 struct bytefile {
