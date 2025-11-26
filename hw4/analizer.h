@@ -30,9 +30,16 @@ enum Phase {
 
 std::vector<bool> find_basic_blocks(const bytefile * bytefile);
 
+struct StackNode {
+  int32_t offset;
+  int32_t begin_offset;
+  int16_t max_stack;
+  int16_t current_stack;
+};
+
 void traverse(
   const bytefile *bf,
-  std::vector<int32_t> & stack
+  std::vector<StackNode> & stack
 );
 
 void print_statistics(const bytefile * bf);

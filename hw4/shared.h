@@ -106,8 +106,8 @@ struct Instruction {
   InstructionTag lowTag;
   std::vector<int32_t> args;
 
-  size_t length() const {
-    return args.size() * 4 + 1;
+  int8_t length() const {
+    return static_cast<int8_t>(args.size() * 4 + 1);
   }
 
   bool operator<(const Instruction &other) const {
@@ -238,6 +238,125 @@ struct Instruction {
 
       default:
         return "UNKNOWN";
+    }
+  }
+
+  // int16_t current_stack(int16_t n) const {
+  //   if (highTag == CONTROL && (lowTag == BEGIN || lowTag == CBEGIN)) {
+  //     return 0;
+  //   }
+  //   return n + stack_diff();
+  // }
+
+  int16_t stack_diff() const {
+    switch (highTag) {
+      case STOP:
+        return 0;
+
+      case BINOP:
+        return -1;
+
+      case CONST:
+        switch (lowTag) {
+          case CONST_INT:
+            return 1;
+          case CONST_STRING:
+            return 1;
+          case MAKE_SEXP:
+            return 1 - args[1];
+          case STI:
+            return -1;
+          case STA:
+            return -1;
+          case JMP:
+            return 0;
+          case END:
+            return 0;
+          case RET:
+            return 0;
+          case DROP:
+            return -1;
+          case DUP:
+            return 1;
+          case SWAP:
+            return 0;
+          case ELEM:
+            return -1;
+          default:
+            throw std::logic_error("Unreachable");
+        }
+
+      case LD: {
+        return 1;
+      }
+      case LDA: {
+        throw std::logic_error("Unreachable");
+      }
+      case ST: {
+        return 0;
+      }
+
+      case CONTROL:
+        switch (lowTag) {
+          case CJMPz:
+            return -1;
+          case CJMPnz:
+            return -1;
+          case BEGIN:
+            return 0;
+          case CBEGIN:
+            return 0;
+          case MAKE_CLOSURE:
+            return 1;
+          case CALLC:
+            return -args[0];
+          case CALL:
+            return 1 - args[1];
+          case TAG:
+            return 0;
+          case MAKE_ARRAY:
+            return 0;
+          case FAIL_I:
+            return 0;
+          case LINE:
+            return 0;
+          default:
+            throw std::logic_error("Unreachable");
+        }
+
+      case PATT:
+        switch (lowTag) {
+          case PATT_STR_EQ:
+            return -1;
+          case PATT_STRING:
+          case PATT_ARRAY:
+          case PATT_SEXP:
+          case PATT_BOXED:
+          case PATT_UNBOXED:
+          case PATT_CLOSURE:
+            return 0;
+          default:
+            throw std::logic_error("Unreachable");
+        }
+
+      case BUILTIN:
+        switch (lowTag) {
+          case BUILTIN_Lread:
+            return 1;
+          case BUILTIN_Lwrite:
+            return 0;
+          case BUILTIN_Llength:
+            return 0;
+          case BUILTIN_Lstring:
+            return 1;
+          case BUILTIN_Barray:
+            return 1 - args[0];
+          default:
+            throw std::logic_error("Unreachable");
+        }
+
+      default:
+        throw std::logic_error("Unreachable");
     }
   }
 };

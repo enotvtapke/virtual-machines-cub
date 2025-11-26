@@ -27,9 +27,10 @@ static void analyze_file(const char *filename) {
   dump_file(stdout, bf);
   fprintf(stdout, "\n");
 
-  std::vector<int32_t> public_symbols_offsets(bf->public_symbols_number);
+  std::vector<StackNode> public_symbols_offsets(bf->public_symbols_number);
   for (int i = 0; i < bf->public_symbols_number; i++) {
-    public_symbols_offsets[i] = get_public_offset(bf, i);
+    const int32_t public_offset = get_public_offset(bf, i);
+    public_symbols_offsets[i] = StackNode(public_offset, public_offset, 0, 0);
   }
   traverse(bf, public_symbols_offsets);
   print_statistics(bf);
