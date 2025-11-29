@@ -34,15 +34,15 @@ struct StackNode {
   int32_t offset;
   int32_t begin_offset;
   int16_t max_stack;
-  int16_t current_stack;
 };
 
 void traverse(
   const bytefile *bf,
-  std::vector<StackNode> & stack
+  std::vector<StackNode> & stack,
+  std::vector<int16_t> &used
 );
 
-void print_statistics(const bytefile * bf);
+void print_statistics(const bytefile * bf, const std::vector<int16_t> &used);
 
 const char * get_string(const bytefile * f, unsigned int pos);
 

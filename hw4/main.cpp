@@ -28,13 +28,16 @@ void print_basic_block_starts(const std::vector<bool> &s) {
 }
 
 static void analyze_file(const bytefile *bf) {
+  std::vector<int16_t> used(0);
   std::vector<StackNode> public_symbols_offsets(bf->public_symbols_number);
+  used.resize(bf->code_size, -1);
   for (int i = 0; i < bf->public_symbols_number; i++) {
     const int32_t public_offset = get_public_offset(bf, i);
-    public_symbols_offsets[i] = StackNode(public_offset, public_offset, 0, 0);
+    used[public_offset] = 0;
+    public_symbols_offsets[i] = StackNode(public_offset, public_offset, 0);
   }
-  traverse(bf, public_symbols_offsets);
-  print_statistics(bf);
+  traverse(bf, public_symbols_offsets, used);
+  print_statistics(bf, used);
 }
 
 static void interpret_file(const bytefile * const f) {
@@ -49,8 +52,8 @@ int main(const int argc, char *argv[]) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
-  argv[1] = "test003.bc";
-  argv[2] = "test003.input";
+  argv[1] = "Sort.bc";
+  argv[2] = "Sort.input";
   if (argc > 2) {
     // Redirect stdin to the input file
     if (freopen(argv[2], "r", stdin) == NULL) {
@@ -64,7 +67,7 @@ int main(const int argc, char *argv[]) {
   dump_file(stdout, bf);
   fprintf(stdout, "\n");
   analyze_file(bf);
-  interpret_file(bf);
+  // interpret_file(bf);
   free((bytefile *) bf);
   return 0;
 }

@@ -14,13 +14,11 @@ struct __attribute__((packed)) InstructionView {
   int8_t length;
 };
 
-std::vector<int16_t> used(0);
-
 void traverse(
   const bytefile *bf,
-  std::vector<StackNode> &stack
+  std::vector<StackNode> &stack,
+  std::vector<int16_t> &used
 ) {
-  used.resize(bf->code_size, -1);
   while (!stack.empty()) {
     const StackNode node = stack.back();
     stack.pop_back();
@@ -28,7 +26,7 @@ void traverse(
 
     int32_t current_offset = node.offset;
     int16_t max_stack = node.max_stack;
-    int16_t current_stack = node.current_stack;
+    int16_t current_stack = used[node.offset];
     do {
       used[current_offset] = current_stack;
       auto instruction = decodeInstruction(bf, current_offset);
@@ -47,7 +45,8 @@ void traverse(
       if (instruction.highTag == CONST && instruction.lowTag == JMP) {
         int32_t offset = instruction.args[0];
         if (used[offset] == -1) {
-          stack.push_back(StackNode{offset, node.begin_offset, max_stack, current_stack});
+          used[offset] = current_stack;
+          stack.push_back(StackNode{offset, node.begin_offset, max_stack});
         } else if (used[offset] != current_stack) {
           throw std::runtime_error("Stack size mismatch");
         }
@@ -58,13 +57,15 @@ void traverse(
                                              lowTag == CJMPnz)) {
         int32_t offset = instruction.args[0];
         if (used[offset] == -1) {
-          stack.push_back(StackNode{offset, node.begin_offset, max_stack, current_stack});
+          used[offset] = current_stack;
+          stack.push_back(StackNode{offset, node.begin_offset, max_stack});
         } else if (used[offset] != current_stack) {
           throw std::runtime_error("Stack size mismatch");
         }
 
         if (used[current_offset] == -1) {
-          stack.push_back(StackNode{current_offset, node.begin_offset, max_stack, current_stack});
+          used[current_offset] = current_stack;
+          stack.push_back(StackNode{current_offset, node.begin_offset, max_stack});
         } else if (used[current_offset] != current_stack) {
           throw std::runtime_error("Stack size mismatch");
         }
@@ -74,13 +75,15 @@ void traverse(
       if (instruction.highTag == CONTROL && instruction.lowTag == CALL) {
         int32_t offset = instruction.args[0];
         if (used[offset] == -1) {
-          stack.push_back(StackNode{offset, node.begin_offset, 0, 0});
+          used[offset] = 0;
+          stack.push_back(StackNode{offset, node.begin_offset, 0});
         } else if (used[offset] != 0) {
           throw std::runtime_error("Stack size mismatch");
         }
 
         if (used[current_offset] == -1) {
-          stack.push_back(StackNode{current_offset, node.begin_offset, max_stack, current_stack});
+          used[current_offset] = current_stack;
+          stack.push_back(StackNode{current_offset, node.begin_offset, max_stack});
         } else if (used[current_offset] != current_stack) {
           throw std::runtime_error("Stack size mismatch");
         }
@@ -121,7 +124,7 @@ std::vector<std::pair<T, int> > count_occurrences(std::vector<T> vec, auto compa
   return result;
 }
 
-void print_statistics(const bytefile *const bf) {
+void print_statistics(const bytefile *const bf, const std::vector<int16_t> &used) {
   int32_t offset = 0;
   while (offset < bf->code_size) {
     auto instruction = decodeInstruction(bf, offset);
