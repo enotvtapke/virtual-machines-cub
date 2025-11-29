@@ -1,6 +1,7 @@
 #ifndef HW3_SHARED_H
 #define HW3_SHARED_H
 
+#include <iostream>
 #include <string>
 #include <vector>
 #include <stdexcept>
@@ -110,6 +111,9 @@ struct Instruction {
   std::vector<int32_t> args;
 
   int8_t length() const {
+    if (highTag == CONTROL && lowTag == MAKE_CLOSURE) {
+      return static_cast<int8_t>(2 * 4 + (args.size() - 2) * 5 + 1);
+    }
     return static_cast<int8_t>(args.size() * 4 + 1);
   }
 
@@ -202,8 +206,31 @@ struct Instruction {
             return std::string("BEGIN\t") + std::to_string(args[0]) + " " + std::to_string(args[1]);
           case CBEGIN:
             return std::string("CBEGIN\t") + std::to_string(args[0]) + " " + std::to_string(args[1]);
-          case MAKE_CLOSURE:
-            return std::string("CLOSURE\t") + hex8(args[0]) + " " + std::to_string(args[1]);
+          case MAKE_CLOSURE: {
+            std::string args_str;
+            for (int i = 0; i < args[1]; i++) {
+              const int32_t tag = ((uint32_t) args[i + 2]) >> 30;
+              std::string index = std::to_string(args[i + 2] & 0x3FFFFFFF);
+              switch (tag) {
+                case 0:
+                  args_str += "G(" + index + ")";
+                  break;
+                case 1:
+                  args_str += "L(" + index + ")";
+                  break;
+                case 2:
+                  args_str += "A(" + index + ")";
+                  break;
+                case 3:
+                  args_str += "C(" + index + ")";
+                  break;
+                default:
+                  throw std::runtime_error("Invalid closure variable tag");
+              }
+            }
+            return std::string("CLOSURE\t") + hex8(args[0]) + " " + std::to_string(args[1]) + " " + args_str;
+          }
+
           case CALLC:
             return std::string("CALLC\t") + std::to_string(args[0]);
           case CALL:
@@ -270,7 +297,7 @@ struct Instruction {
           case STI:
             return -1;
           case STA:
-            return -1;
+            return -2;
           case JMP:
             return 0;
           case END:

@@ -76,7 +76,31 @@ Instruction decodeInstruction(const bytefile *bf, const unsigned int entrypoint_
         case CJMPnz: return Instruction{CONTROL, CJMPnz, {INT}};
         case BEGIN: return Instruction{CONTROL, BEGIN, {INT, INT}};
         case CBEGIN: return Instruction{CONTROL, CBEGIN, {INT, INT}};
-        case MAKE_CLOSURE: return Instruction{CONTROL, MAKE_CLOSURE, {INT, INT}};
+        case MAKE_CLOSURE: {
+          const int offset = INT;
+          const int n = INT;
+          std::vector<int32_t> vars;
+          vars.push_back(offset);
+          vars.push_back(n);
+          for (int i = 0; i < n; i++) {
+            const char var_ref_tag = BYTE;
+            int32_t var_ref = var_ref_tag << 30;
+            switch (var_ref_tag) {
+              case 0:
+              case 1:
+              case 2:
+              case 3: {
+                int var_index = INT;
+                var_ref += var_index;
+                break;
+              }
+              default:
+                FAIL;
+            }
+            vars.push_back(var_ref);
+          }
+          return Instruction{CONTROL, MAKE_CLOSURE, vars};
+        }
         case CALLC: return Instruction{CONTROL, CALLC, {INT}};
         case CALL: return Instruction{CONTROL, CALL, {INT, INT}};
         case TAG: return Instruction{CONTROL, TAG, {INT, INT}};

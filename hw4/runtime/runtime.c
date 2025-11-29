@@ -1319,7 +1319,7 @@ extern aint Lread () {
   // int result = BOX(0);
   aint result = BOX(0);
 
-  printf("> ");
+  fprintf(stderr, "> ");
   fflush(stdout);
   scanf("%" SCNdAI, &result);
 

@@ -53,11 +53,13 @@ int main(const int argc, char *argv[]) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
-  argv[1] = "test026.bc";
-  argv[2] = "test026.input";
+  fprintf(stderr, "Interpreting %s\n", argv[1]);
+  // argv[1] = "test026.bc";
+  // argv[2] = "test026.input";
   if (argc > 2) {
     // Redirect stdin to the input file
     if (freopen(argv[2], "r", stdin) == NULL) {
+      printf("Failed to redirect stdin to %s\n", argv[2]);
       perror("Failed to redirect stdin");
       exit(1);
     }
@@ -65,10 +67,10 @@ int main(const int argc, char *argv[]) {
     setbuf(stdin, NULL);
   }
   const bytefile *bf = read_file(argv[1]);
-  dump_file(stdout, bf);
-  fprintf(stdout, "\n");
+  dump_file(stderr, bf);
+  fprintf(stderr, "\n");
   analyze_file(bf);
-  // interpret_file(bf);
+  interpret_file(bf);
   free((bytefile *) bf);
   return 0;
 }

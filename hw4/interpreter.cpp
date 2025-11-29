@@ -327,10 +327,15 @@ void interpret(const bytefile *bf) {
 
           case BEGIN:
           case CBEGIN: {
-            const int args_num = INT;
+            const int tmp = INT;
+            const int args_num = tmp & 0xFFFF;
+            const int max_stack_size = tmp >> 16;
             const int locals_num = INT;
             DEBUG_LOG("BEGIN\t%d ", args_num);
             DEBUG_LOG("%d", locals_num);
+            if ((size_t) (ESP - max_stack_size - 2 - locals_num) < __gc_stack_bottom - STACK_SIZE * sizeof(aint)) {
+              throw std::runtime_error("Not enough space on stack to interpret function at offset " + hex8((int32_t) (state.ip - state.bf->code_ptr - 1)));
+            }
             push(BOX(args_num));
             push(BOX(locals_num));
             for (int i = 0; i < locals_num; i++) {
@@ -496,7 +501,7 @@ void interpret(const bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  printf("<done>\n");
+  fprintf(stderr, "<done>\n");
 }
 
 enum Binop {

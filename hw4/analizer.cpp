@@ -20,15 +20,15 @@ void traverse(
   std::vector<int16_t> &used
 ) {
   while (!stack.empty()) {
-    printf("=====\n");
+    fprintf(stderr, "=====\n");
 
     int32_t current_offset = stack.back();
     stack.pop_back();
     int16_t current_stack = used[current_offset];
     do {
       auto instruction = decodeInstruction(bf, current_offset);
-      printf("%s %d:\t%s\n", hex8(current_offset).c_str(), current_stack,
-             instruction.to_string(bf).c_str());
+      fprintf(stderr, "%s %d:\t%s\n", hex8(current_offset).c_str(), current_stack,
+              instruction.to_string(bf).c_str());
 
       current_stack += instruction.stack_diff();
       if (current_stack < 0) {
@@ -86,7 +86,8 @@ void traverse(
         break;
       }
 
-      if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)) {
+      if (instruction.highTag == CONST && (instruction.lowTag == END || instruction.lowTag == RET)
+          || instruction.highTag == CONTROL && instruction.lowTag == FAIL_I) {
         break;
       }
 
@@ -134,20 +135,20 @@ void calc_max(const bytefile *const bf, const std::vector<int16_t> &used) {
     if (instruction.highTag == CONST && instruction.lowTag == END) {
       int32_t begin_first_arg_offset = begins.back() + 1;
       begins.pop_back();
-      if ((int32_t) bf->code_ptr[begin_first_arg_offset] > 31) {
+      if ((int32_t) bf->code_ptr[begin_first_arg_offset] >= 1 << 16) {
         throw std::runtime_error(
           "Function has to many arguments at offset" + std::to_string(begin_first_arg_offset - 1));
       }
-      bf->code_ptr[begin_first_arg_offset] = bf->code_ptr[begin_first_arg_offset] + (max_stack << 4);
+      bf->code_ptr[begin_first_arg_offset] = bf->code_ptr[begin_first_arg_offset] + (max_stack << 16);
 
-      printf("%s: %d at %s\n",
-             hex8(offset).c_str(),
-             max_stack,
-             hex8(begin_first_arg_offset - 1).c_str()
+      fprintf(stderr, "%s: %d at %s\n",
+              hex8(offset).c_str(),
+              max_stack,
+              hex8(begin_first_arg_offset - 1).c_str()
       );
       max_stack = -1;
     }
-    if (instruction.highTag == CONTROL && instruction.lowTag == BEGIN) {
+    if (instruction.highTag == CONTROL && (instruction.lowTag == BEGIN || instruction.lowTag == CBEGIN)) {
       begins.push_back(offset);
     }
     offset += instruction.length();
@@ -159,12 +160,12 @@ void print_statistics(const bytefile *const bf, const std::vector<int16_t> &used
   while (offset < bf->code_size) {
     auto instruction = decodeInstruction(bf, offset);
 
-    printf("%s: %d (used[%d] = %d)\n",
-           hex8(offset).c_str(),
-           offset,
-           offset,
-           used[offset]);
-    printf("  %s\n", instruction.to_string(bf).c_str());
+    fprintf(stderr, "%s: %d (used[%d] = %d)\n",
+            hex8(offset).c_str(),
+            offset,
+            offset,
+            used[offset]);
+    fprintf(stderr, "  %s\n", instruction.to_string(bf).c_str());
 
     offset += instruction.length();
   }
