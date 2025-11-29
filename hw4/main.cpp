@@ -8,9 +8,14 @@
 #include <iostream>
 
 #include "analizer.h"
+#include "interpreter.h"
 #include "shared.h"
 
 #include <unordered_set>
+
+extern "C" {
+  #include "gc.h"
+}
 
 void print_basic_block_starts(const std::vector<bool> &s) {
   printf("{");
@@ -22,11 +27,7 @@ void print_basic_block_starts(const std::vector<bool> &s) {
   printf("}\n");
 }
 
-static void analyze_file(const char *filename) {
-  const bytefile *bf = read_file(filename);
-  dump_file(stdout, bf);
-  fprintf(stdout, "\n");
-
+static void analyze_file(const bytefile *bf) {
   std::vector<StackNode> public_symbols_offsets(bf->public_symbols_number);
   for (int i = 0; i < bf->public_symbols_number; i++) {
     const int32_t public_offset = get_public_offset(bf, i);
@@ -34,7 +35,13 @@ static void analyze_file(const char *filename) {
   }
   traverse(bf, public_symbols_offsets);
   print_statistics(bf);
-  free((bytefile *) bf);
+}
+
+static void interpret_file(const bytefile * const f) {
+  __gc_init();
+  __gc_stack_bottom = (size_t) (f->global_ptr + f->global_area_size + 1);
+  __gc_stack_top = (size_t) (f->stack_ptr - 1);
+  interpret(f);
 }
 
 int main(const int argc, char *argv[]) {
@@ -42,6 +49,22 @@ int main(const int argc, char *argv[]) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
-  analyze_file(argv[1]);
+  argv[1] = "test003.bc";
+  argv[2] = "test003.input";
+  if (argc > 2) {
+    // Redirect stdin to the input file
+    if (freopen(argv[2], "r", stdin) == NULL) {
+      perror("Failed to redirect stdin");
+      exit(1);
+    }
+
+    setbuf(stdin, NULL);
+  }
+  const bytefile *bf = read_file(argv[1]);
+  dump_file(stdout, bf);
+  fprintf(stdout, "\n");
+  analyze_file(bf);
+  interpret_file(bf);
+  free((bytefile *) bf);
   return 0;
 }

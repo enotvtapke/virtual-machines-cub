@@ -23,6 +23,9 @@ add_library(runtime STATIC
         printf.S
 )
 
+# Force C language for this target
+set_target_properties(runtime PROPERTIES LINKER_LANGUAGE C)
+
 # Apply compiler flags to the library
 target_compile_options(runtime PRIVATE
         ${PROD_FLAGS}
@@ -31,6 +34,7 @@ target_compile_options(runtime PRIVATE
 # Special handling for assembly file
 set_source_files_properties(printf.S PROPERTIES
         COMPILE_FLAGS "-Wa,--noexecstack -x assembler-with-cpp -g"
+        LANGUAGE C
 )
 
 # Set output name to match original (optional, as linking will work either way)

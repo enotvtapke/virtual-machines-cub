@@ -2,8 +2,8 @@
 // Created by enotvtapke on 10/25/25.
 //
 
-#ifndef HW2_INTERPRETER_H
-#define HW2_INTERPRETER_H
+#ifndef  HW2_ANALIZER_H
+#define  HW2_ANALIZER_H
 
 #include <string>
 #include <vector>
@@ -46,4 +46,4 @@ void print_statistics(const bytefile * bf);
 
 const char * get_string(const bytefile * f, unsigned int pos);
 
-#endif //HW2_INTERPRETER_H
+#endif // HW2_ANALIZER_H

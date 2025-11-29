@@ -5,6 +5,8 @@
 #include <vector>
 #include <stdexcept>
 
+#include "runtime_common.h"
+
 static void failure(const std::string &s, ...) {
   throw std::runtime_error(s);
 }
@@ -14,6 +16,7 @@ struct bytefile {
   int32_t *public_ptr; // A pointer to the beginning of publics table
   char *code_ptr; // A pointer to the bytecode itself
   int64_t *global_ptr; // A pointer to the global area
+  aint *stack_ptr;           // A pointer to the stack bottom (stack grows downwards)
   unsigned long code_size; // Code section size in bytes
   unsigned int entrypoint_offset; // Public symbol "main" offset
   unsigned int stringtab_size; // The size (in bytes) of the string table

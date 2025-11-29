@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 
 #include "analizer.h"
+#include "runtime_common.h"
 
 /* Gets a string from a string table by an index */
 const char * get_string(const bytefile * f, const unsigned int pos) {
@@ -79,6 +80,11 @@ const bytefile *read_file(const char * fname) {
   file->public_ptr = (int *) file->buffer;
   file->code_ptr = &file->string_ptr[file->stringtab_size];
   file->code_size = size - ((size_t) file->code_ptr - (size_t) &file->stringtab_size);
+
+  aint * stack = static_cast<aint *>(malloc(sizeof(size_t) + file->global_area_size * sizeof(size_t) + STACK_SIZE * sizeof(aint)));
+
+  file->global_ptr = &stack[STACK_SIZE];
+  file->stack_ptr = &stack[STACK_SIZE];
 
   *(file->code_ptr - 1) = '\0';
   file->entrypoint_offset = -1;
