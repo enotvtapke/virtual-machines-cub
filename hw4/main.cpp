@@ -29,15 +29,15 @@ void print_basic_block_starts(const std::vector<bool> &s) {
 
 static void analyze_file(const bytefile *bf) {
   std::vector<int16_t> used(0);
-  std::vector<StackNode> public_symbols_offsets(bf->public_symbols_number);
+  std::vector<int32_t> public_symbols_offsets(bf->public_symbols_number);
   used.resize(bf->code_size, -1);
   for (int i = 0; i < bf->public_symbols_number; i++) {
     const int32_t public_offset = get_public_offset(bf, i);
     used[public_offset] = 0;
-    public_symbols_offsets[i] = StackNode(public_offset, public_offset, 0);
+    public_symbols_offsets[i] = public_offset;
   }
   traverse(bf, public_symbols_offsets, used);
-  // print_statistics(bf, used);
+  print_statistics(bf, used);
   calc_max(bf, used);
 }
 
