@@ -124,6 +124,36 @@ std::vector<std::pair<T, int> > count_occurrences(std::vector<T> vec, auto compa
   return result;
 }
 
+void calc_max(const bytefile *const bf, const std::vector<int16_t> &used) {
+  int32_t offset = 0;
+  int16_t max_stack = 0;
+  std::vector<int32_t> begins(0);
+  while (offset < bf->code_size) {
+    auto instruction = decodeInstruction(bf, offset);
+    max_stack = std::max(used[offset], max_stack);
+    if (instruction.highTag == CONST && instruction.lowTag == END) {
+      int32_t begin_first_arg_offset = begins.back() + 1;
+      begins.pop_back();
+      if ((int32_t) bf->code_ptr[begin_first_arg_offset] > 31) {
+        throw std::runtime_error(
+          "Function has to many arguments at offset" + std::to_string(begin_first_arg_offset - 1));
+      }
+      bf->code_ptr[begin_first_arg_offset] = bf->code_ptr[begin_first_arg_offset] + (max_stack << 4);
+
+      DEBUG_LOG("%s: %d at %s\n",
+             hex8(offset).c_str(),
+             max_stack,
+             hex8(begin_first_arg_offset - 1).c_str()
+      );
+      max_stack = -1;
+    }
+    if (instruction.highTag == CONTROL && instruction.lowTag == BEGIN) {
+      begins.push_back(offset);
+    }
+    offset += instruction.length();
+  }
+}
+
 void print_statistics(const bytefile *const bf, const std::vector<int16_t> &used) {
   int32_t offset = 0;
   while (offset < bf->code_size) {

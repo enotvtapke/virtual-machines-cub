@@ -37,7 +37,8 @@ static void analyze_file(const bytefile *bf) {
     public_symbols_offsets[i] = StackNode(public_offset, public_offset, 0);
   }
   traverse(bf, public_symbols_offsets, used);
-  print_statistics(bf, used);
+  // print_statistics(bf, used);
+  calc_max(bf, used);
 }
 
 static void interpret_file(const bytefile * const f) {
@@ -52,8 +53,8 @@ int main(const int argc, char *argv[]) {
     perror("ERROR: adaptive int has wrong size\n");
     exit(1);
   }
-  argv[1] = "Sort.bc";
-  argv[2] = "Sort.input";
+  argv[1] = "test026.bc";
+  argv[2] = "test026.input";
   if (argc > 2) {
     // Redirect stdin to the input file
     if (freopen(argv[2], "r", stdin) == NULL) {

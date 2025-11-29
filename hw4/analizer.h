@@ -42,6 +42,8 @@ void traverse(
   std::vector<int16_t> &used
 );
 
+void calc_max(const bytefile * bf, const std::vector<int16_t> &used);
+
 void print_statistics(const bytefile * bf, const std::vector<int16_t> &used);
 
 const char * get_string(const bytefile * f, unsigned int pos);
