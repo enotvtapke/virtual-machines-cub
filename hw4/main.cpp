@@ -38,7 +38,7 @@ static void analyze_file(const bytefile *bf) {
   }
   traverse(bf, public_symbols_offsets, used);
   print_statistics(bf, used);
-  calc_max(bf, used);
+  verify_and_calc_max_stack_size(bf, used);
 }
 
 static void interpret_file(const bytefile * const f) {

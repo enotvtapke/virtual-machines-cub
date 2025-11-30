@@ -36,7 +36,7 @@ void traverse(
   std::vector<int16_t> &used
 );
 
-void calc_max(const bytefile * bf, const std::vector<int16_t> &used);
+void verify_and_calc_max_stack_size(const bytefile * bf, const std::vector<int16_t> &used);
 
 void print_statistics(const bytefile * bf, const std::vector<int16_t> &used);
 

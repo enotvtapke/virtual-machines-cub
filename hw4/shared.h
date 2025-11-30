@@ -5,11 +5,18 @@
 #include <string>
 #include <vector>
 #include <stdexcept>
+#include <cstdarg>
+#include <cstdio>
 
 #include "runtime_common.h"
 
 static void failure(const std::string &s, ...) {
-  throw std::runtime_error(s);
+  va_list args;
+  va_start(args, s);
+  char buffer[1024];
+  vsnprintf(buffer, sizeof(buffer), s.c_str(), args);
+  va_end(args);
+  throw std::runtime_error(buffer);
 }
 
 struct bytefile {

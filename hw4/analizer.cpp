@@ -125,16 +125,44 @@ std::vector<std::pair<T, int> > count_occurrences(std::vector<T> vec, auto compa
   return result;
 }
 
-void calc_max(const bytefile *const bf, const std::vector<int16_t> &used) {
+void validate_variable_index(const bytefile * const bf, const int args_num, const int locals_num, unsigned char designation, int index) {
+  switch (designation) {
+    case GLOBAL:
+      if (index >= bf->global_area_size) {
+        failure("Global variable %d out of bounds. Number of globals %d\n", index, bf->global_area_size);
+      }
+      break;
+    case LOCAL:
+      if (index >= locals_num) {
+        failure("Local variable %d out of bounds. Number of locals %d\n", index, locals_num);
+      }
+      break;
+    case ARG:
+      if (index >= args_num) {
+        failure("Argument variable %d out of bounds. Number of arguments %d\n", index, args_num);
+      }
+      break;
+    case CLOSURE_VAR:
+      break;
+    default:
+      failure("Unknown designation %d\n", designation);
+  }
+}
+
+void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<int16_t> &used) {
   int32_t offset = 0;
   int16_t max_stack = 0;
-  std::vector<int32_t> begins(0);
+  std::vector<int32_t> begin_offsets(0);
   while (offset < bf->code_size) {
     auto instruction = decodeInstruction(bf, offset);
+    // fprintf(stderr, "%s: %s\n",
+    //           hex8(offset).c_str(),
+    //           instruction.to_string(bf).c_str()
+    //   );
     max_stack = std::max(used[offset], max_stack);
     if (instruction.highTag == CONST && instruction.lowTag == END) {
-      int32_t begin_first_arg_offset = begins.back() + 1;
-      begins.pop_back();
+      int32_t begin_first_arg_offset = begin_offsets.back() + 1;
+      begin_offsets.pop_back();
       if ((int32_t) bf->code_ptr[begin_first_arg_offset] >= 1 << 16) {
         throw std::runtime_error(
           "Function has to many arguments at offset" + std::to_string(begin_first_arg_offset - 1));
@@ -149,7 +177,25 @@ void calc_max(const bytefile *const bf, const std::vector<int16_t> &used) {
       max_stack = -1;
     }
     if (instruction.highTag == CONTROL && (instruction.lowTag == BEGIN || instruction.lowTag == CBEGIN)) {
-      begins.push_back(offset);
+      begin_offsets.push_back(offset);
+    }
+    if (used[offset] != -1) {
+      const int32_t begin_offset = begin_offsets.back();
+      auto instruction_begin = decodeInstruction(bf, begin_offset);
+      const int args_num = instruction_begin.args[0] & 0xFFFF;
+      const int locals_num = instruction_begin.args[1];
+      if (instruction.highTag == ST || instruction.highTag == LD) {
+        const unsigned char designation = instruction.lowTag;
+        const int index = instruction.args[0];
+        validate_variable_index(bf, args_num, locals_num, designation, index);
+      }
+      if (instruction.highTag == CONTROL && instruction.lowTag == MAKE_CLOSURE) {
+        for (int i = 0; i < instruction.args[1]; i++) {
+          const int32_t tag = ((uint32_t) instruction.args[i + 2]) >> 30;
+          const int index = instruction.args[i + 2] & 0x3FFFFFFF;
+          validate_variable_index(bf, args_num, locals_num, tag, index);
+        }
+      }
     }
     offset += instruction.length();
   }
