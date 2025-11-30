@@ -196,6 +196,11 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
           validate_variable_index(bf, args_num, locals_num, tag, index);
         }
       }
+      if (instruction.highTag == CONST && instruction.lowTag == JMP) {
+        if (offset >= bf->code_size) {
+          failure("Jump with offset %d is outside of code section of size %d\n", offset, bf->code_size);
+        }
+      }
     }
     offset += instruction.length();
   }
