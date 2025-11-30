@@ -90,6 +90,9 @@ inline static aint * local(const unsigned int index) {
 
 inline static aint * arg(const unsigned int index) {
   const aint num_args = UNBOX(*(state.ebp - 1));
+  if (index >= num_args) {
+    failure("Argument %d out of bounds. Number of arguments %d\n", index, num_args);
+  }
   return state.ebp + 3 + num_args - 1 - index; // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 

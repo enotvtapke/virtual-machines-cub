@@ -20,15 +20,15 @@ void traverse(
   std::vector<int16_t> &used
 ) {
   while (!stack.empty()) {
-    fprintf(stderr, "=====\n");
+    // fprintf(stderr, "=====\n");
 
     int32_t current_offset = stack.back();
     stack.pop_back();
     int16_t current_stack = used[current_offset];
     do {
       auto instruction = decodeInstruction(bf, current_offset);
-      fprintf(stderr, "%s %d:\t%s\n", hex8(current_offset).c_str(), current_stack,
-              instruction.to_string(bf).c_str());
+      // fprintf(stderr, "%s %d:\t%s\n", hex8(current_offset).c_str(), current_stack,
+      //         instruction.to_string(bf).c_str());
 
       if (instruction.highTag == CONST && instruction.lowTag == MAKE_SEXP) {
         const int n = instruction.args[1];
@@ -191,11 +191,11 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
       }
       bf->code_ptr[begin_first_arg_offset] = bf->code_ptr[begin_first_arg_offset] + (max_stack << 16);
 
-      fprintf(stderr, "%s: %d at %s\n",
-              hex8(current_offset).c_str(),
-              max_stack,
-              hex8(begin_first_arg_offset - 1).c_str()
-      );
+      // fprintf(stderr, "%s: %d at %s\n",
+      //         hex8(current_offset).c_str(),
+      //         max_stack,
+      //         hex8(begin_first_arg_offset - 1).c_str()
+      // );
       max_stack = -1;
     }
     if (instruction.highTag == CONTROL && (instruction.lowTag == BEGIN || instruction.lowTag == CBEGIN)) {

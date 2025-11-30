@@ -1,6 +1,7 @@
 /* Lama SM Bytecode interpreter */
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <string.h>
 #include <stdio.h>
@@ -37,7 +38,7 @@ static void analyze_file(const bytefile *bf) {
     public_symbols_offsets[i] = public_offset;
   }
   traverse(bf, public_symbols_offsets, used);
-  print_statistics(bf, used);
+  // print_statistics(bf, used);
   verify_and_calc_max_stack_size(bf, used);
 }
 
@@ -69,8 +70,17 @@ int main(const int argc, char *argv[]) {
   const bytefile *bf = read_file(argv[1]);
   dump_file(stderr, bf);
   fprintf(stderr, "\n");
+  auto analyze_start = std::chrono::high_resolution_clock::now();
   analyze_file(bf);
+  auto analyze_end = std::chrono::high_resolution_clock::now();
+  auto analyze_duration = std::chrono::duration_cast<std::chrono::microseconds>(analyze_end - analyze_start);
+
+  auto interpret_start = std::chrono::high_resolution_clock::now();
   interpret_file(bf);
+  auto interpret_end = std::chrono::high_resolution_clock::now();
+  auto interpret_duration = std::chrono::duration_cast<std::chrono::microseconds>(interpret_end - interpret_start);
+  fprintf(stderr, "analyze_file took %ld microseconds\n", analyze_duration.count());
+  fprintf(stderr, "interpret_file took %ld microseconds\n", interpret_duration.count());
   free((bytefile *) bf);
   return 0;
 }

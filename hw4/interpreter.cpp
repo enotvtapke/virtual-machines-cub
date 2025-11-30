@@ -470,7 +470,7 @@ void interpret(const bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  fprintf(stderr, "<done>\n");
+  // fprintf(stderr, "<done>\n");
 }
 
 enum Binop {
