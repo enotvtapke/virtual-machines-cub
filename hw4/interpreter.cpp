@@ -56,9 +56,6 @@ static void dump_stack() {
 }
 
 inline static void push(const aint value) {
-  if (ESP <= state.bf->stack_ptr - STACK_SIZE) {
-    failure("Stack overflow at IP %d\n", state.ip);
-  }
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
 }
@@ -68,27 +65,15 @@ inline static aint get_locals_num() {
 }
 
 inline static aint pop() {
-  if (ESP >= state.ebp - 3 - (get_locals_num() - 1)) {
-    failure("Popping values from stack frame (locals or worse) at IP %d\n", state.ip);
-  }
-  if (ESP >= state.bf->stack_ptr) {
-    failure("Stack underflow at IP %d\n", state.ip);
-  }
   __gc_stack_top += sizeof(size_t);
   return *(ESP - 1);
 }
 
 inline static aint * global(const unsigned int index) {
-  if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
-  }
   return &state.bf->global_ptr[index];
 }
 
 inline static aint * local(const unsigned int index) {
-  if (index >= get_locals_num()) {
-    failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
-  }
   return state.ebp - 3 - index; // - 2 because we saved the number of args between ebp and locals
 }
 
@@ -117,18 +102,11 @@ inline static aint * closure(const unsigned int index) {
 }
 
 inline static int read(const unsigned int bytes) {
-  if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
-    failure("When reading %d bytes IP counter %d can move outside of the code section of size\n", bytes, state.ip,
-            state.bf->code_size);
-  }
   state.ip += bytes;
   return *(int *)(state.ip - bytes);
 }
 
 inline static void jump(const unsigned int offset) {
-  if (offset >= state.bf->code_size) {
-    failure("Jump with offset %d is outside of code section of size %d\n", offset, state.bf->code_size);
-  }
   state.ip = state.bf->code_ptr + offset;
 }
 
@@ -203,9 +181,6 @@ void interpret(const bytefile *bf) {
             const char * tag = STRING;
             const unsigned int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
-            if (__gc_stack_top + n * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("Invalid sexpr length %d at %ip", n, state.ip);
-            }
             push(LtagHash((char *) tag));
             const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
             __gc_stack_top += (n + 1) * sizeof(size_t);
@@ -361,9 +336,6 @@ void interpret(const bytefile *bf) {
           case CALLC: {
             const int args_num = INT;
             DEBUG_LOG("CALLC\t%d", args_num);
-            if (__gc_stack_top + args_num * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("CALLC have invalid number of arguments %d at %ip", args_num, state.ip);
-            }
             const aint closure_ptr = *(ESP + args_num);
             for (int i = args_num - 1; i >= 0; i--) {
               *(ESP + i + 1) = *(ESP + i);
@@ -479,9 +451,6 @@ void interpret(const bytefile *bf) {
           case BUILTIN_Barray: {
             const unsigned int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
-            if (__gc_stack_top + len * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("Invalid array length %d at ip %d\n", len, state.ip);
-            }
             const aint result = (aint) Barray_reversed(ESP, BOX(len));
             __gc_stack_top += len * sizeof(size_t);
             push(result);
