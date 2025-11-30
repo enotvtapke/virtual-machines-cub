@@ -8,7 +8,7 @@
 #include <errno.h>
 #include <iostream>
 
-#include "analizer.h"
+#include "verifier.h"
 #include "interpreter.h"
 #include "shared.h"
 

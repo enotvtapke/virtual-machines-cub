@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "analizer.h"
+#include "verifier.h"
 #include "runtime_common.h"
 
 /* Gets a string from a string table by an index */

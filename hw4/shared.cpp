@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "analizer.h"
+#include "verifier.h"
 
 inline static int read(char **ip, const unsigned int bytes, const bytefile *bf) {
   char *ipValue = *ip;

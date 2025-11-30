@@ -12,8 +12,8 @@ set_target_properties(runtime PROPERTIES
 
 add_executable(hw4 main.cpp
         bytefile.cpp
-        analizer.h
-        analizer.cpp
+        verifier.h
+        verifier.cpp
         shared.cpp
         shared.h
         interpreter.cpp

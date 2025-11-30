@@ -5,7 +5,7 @@
 #include <vector>
 #include <algorithm>
 
-#include "analizer.h"
+#include "verifier.h"
 
 #include <iostream>
 

@@ -7,7 +7,7 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include "analizer.h"
+#include "verifier.h"
 #include "shared.h"
 
 extern "C" {
