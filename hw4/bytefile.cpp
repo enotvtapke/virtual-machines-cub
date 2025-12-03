@@ -49,12 +49,9 @@ const bytefile *read_file(const char * fname) {
     failure("%s\n", strerror(errno));
   }
 
-  struct stat st;
-  stat(fname, &st);
-  if (st.st_size > LONG_MAX)
-    failure("Bytecode file too large: %lld", st.st_size);
-
-  bytefile *file = (bytefile *) malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = ftell(f)));
+  const long int f_size = ftell(f);
+  if (f_size == -1) failure("Bytecode file too large");
+  bytefile *file = (bytefile *) malloc(sizeof(void *) * 5 + sizeof(long) + sizeof(int) + (size = f_size));
 
   if (file == 0) {
     failure("*** FAILURE: unable to allocate memory.\n");
