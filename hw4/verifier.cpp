@@ -59,51 +59,30 @@ void traverse(
       const int8_t length = instruction.length();
       current_offset += length;
 
-      if (instruction.highTag == CONST && instruction.lowTag == JMP) {
-        int32_t offset = instruction.args[0];
+      auto next_step = [&](const int32_t offset, const int16_t expected_stack) {
         if (used[offset] == -1) {
-          used[offset] = current_stack;
+          used[offset] = expected_stack;
           stack.push_back(offset);
-        } else if (used[offset] != current_stack) {
-          throw std::runtime_error("Stack size mismatch");
+        } else if (used[offset] != expected_stack) {
+          throw std::runtime_error("Stack size mismatch at offset " + hex8(offset));
         }
+      };
+
+      if (instruction.highTag == CONST && instruction.lowTag == JMP) {
+        next_step(instruction.args[0], current_stack);
         break;
       }
 
       if (instruction.highTag == CONTROL && (instruction.lowTag == CJMPz || instruction.
                                              lowTag == CJMPnz)) {
-        int32_t offset = instruction.args[0];
-        if (used[offset] == -1) {
-          used[offset] = current_stack;
-          stack.push_back(offset);
-        } else if (used[offset] != current_stack) {
-          throw std::runtime_error("Stack size mismatch");
-        }
-
-        if (used[current_offset] == -1) {
-          used[current_offset] = current_stack;
-          stack.push_back(current_offset);
-        } else if (used[current_offset] != current_stack) {
-          throw std::runtime_error("Stack size mismatch");
-        }
+        next_step(instruction.args[0], current_stack);
+        next_step(current_offset, current_stack);
         break;
       }
 
       if (instruction.highTag == CONTROL && instruction.lowTag == CALL) {
-        int32_t offset = instruction.args[0];
-        if (used[offset] == -1) {
-          used[offset] = 0;
-          stack.push_back(offset);
-        } else if (used[offset] != 0) {
-          throw std::runtime_error("Stack size mismatch");
-        }
-
-        if (used[current_offset] == -1) {
-          used[current_offset] = current_stack;
-          stack.push_back(current_offset);
-        } else if (used[current_offset] != current_stack) {
-          throw std::runtime_error("Stack size mismatch");
-        }
+        next_step(instruction.args[0], 0);
+        next_step(current_offset, current_stack);
         break;
       }
 
