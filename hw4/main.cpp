@@ -32,11 +32,8 @@ static void analyze_file(const bytefile *bf) {
   std::vector<int16_t> used(0);
   std::vector<int32_t> public_symbols_offsets(bf->public_symbols_number);
   used.resize(bf->code_size, -1);
-  for (int i = 0; i < bf->public_symbols_number; i++) {
-    const int32_t public_offset = get_public_offset(bf, i);
-    used[public_offset] = 0;
-    public_symbols_offsets[i] = public_offset;
-  }
+  used[bf->entrypoint_offset] = 0;
+  public_symbols_offsets[0] = bf->entrypoint_offset;
   traverse(bf, public_symbols_offsets, used);
   // print_statistics(bf, used);
   verify_and_calc_max_stack_size(bf, used);
