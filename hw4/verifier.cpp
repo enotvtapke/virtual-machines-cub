@@ -53,7 +53,7 @@ void traverse(
 
       current_stack += instruction.stack_diff();
       if (current_stack < 0) {
-        throw std::runtime_error("Invalid stack size");
+        throw std::runtime_error("Stack is exhausted at instruction " + instruction.to_string(bf) + " at offset " + hex8(current_offset));
       }
 
       const int8_t length = instruction.length();
