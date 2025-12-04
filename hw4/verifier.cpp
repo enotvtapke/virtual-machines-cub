@@ -154,7 +154,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
   uint32_t current_offset = bf->entrypoint_offset;
   int16_t max_stack = 0;
   std::vector<uint32_t> begin_offsets(0);
-  do {
+  while (current_offset < bf->code_size) {
     auto instruction = decodeInstruction(bf, current_offset);
     // fprintf(stderr, "%s: %s\n",
     //           hex8(offset).c_str(),
@@ -164,11 +164,11 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
     if (instruction.highTag == CONST && instruction.lowTag == END) {
       uint32_t begin_first_arg_offset = begin_offsets.back() + 1;
       begin_offsets.pop_back();
-      if (((uint16_t *) (bf->code_ptr + 1))[begin_first_arg_offset] != 0) {
+      if (((uint16_t *) (bf->code_ptr + begin_first_arg_offset))[1] != 0) {
         throw std::runtime_error(
           "Function has to many arguments at offset" + std::to_string(begin_first_arg_offset - 1));
       }
-      ((uint16_t *) (bf->code_ptr + 1))[begin_first_arg_offset] = max_stack;
+      ((uint16_t *) (bf->code_ptr + begin_first_arg_offset))[1] = max_stack;
 
       // fprintf(stderr, "%s: %d at %s\n",
       //         hex8(current_offset).c_str(),
@@ -206,7 +206,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
       }
     }
     current_offset += instruction.length();
-  } while (!begin_offsets.empty());
+  }
 }
 
 void print_statistics(const bytefile *const bf, const std::vector<int16_t> &used) {
