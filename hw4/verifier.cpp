@@ -164,11 +164,11 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
     if (instruction.highTag == CONST && instruction.lowTag == END) {
       uint32_t begin_first_arg_offset = begin_offsets.back() + 1;
       begin_offsets.pop_back();
-      if ((int32_t) bf->code_ptr[begin_first_arg_offset] >= 1 << 16) {
+      if (((uint16_t *) (bf->code_ptr + 1))[begin_first_arg_offset] != 0) {
         throw std::runtime_error(
           "Function has to many arguments at offset" + std::to_string(begin_first_arg_offset - 1));
       }
-      bf->code_ptr[begin_first_arg_offset] = bf->code_ptr[begin_first_arg_offset] + (max_stack << 16);
+      ((uint16_t *) (bf->code_ptr + 1))[begin_first_arg_offset] = max_stack;
 
       // fprintf(stderr, "%s: %d at %s\n",
       //         hex8(current_offset).c_str(),
