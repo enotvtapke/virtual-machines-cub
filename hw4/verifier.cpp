@@ -160,6 +160,10 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
     //           hex8(offset).c_str(),
     //           instruction.to_string(bf).c_str()
     //   );
+    if (used[current_offset] == -1) {
+      current_offset += instruction.length();
+      continue;
+    }
     max_stack = std::max(used[current_offset], max_stack);
     if (instruction.highTag == CONST && instruction.lowTag == END) {
       uint32_t begin_first_arg_offset = begin_offsets.back() + 1;
