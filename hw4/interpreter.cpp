@@ -7,15 +7,19 @@
 #include <errno.h>
 #include <stdlib.h>
 
-#include "interpreter.h"
-#include "./runtime/runtime.c"
+#include "verifier.h"
+#include "shared.h"
+
+extern "C" {
+#include "runtime/runtime.h"
+}
 
 #define EMPTY BOX(0)
 
 typedef struct {
   char *ip;
   aint *ebp;
-  const bytefile *bf;
+  const struct bytefile *bf;
 } State;
 
 static State state;
@@ -52,9 +56,6 @@ static void dump_stack() {
 }
 
 inline static void push(const aint value) {
-  if (ESP <= state.bf->stack_ptr - STACK_SIZE) {
-    failure("Stack overflow at IP %d\n", state.ip);
-  }
   __gc_stack_top -= sizeof(size_t);
   *ESP = value;
 }
@@ -64,35 +65,20 @@ inline static aint get_locals_num() {
 }
 
 inline static aint pop() {
-  if (ESP >= state.ebp - 3 - (get_locals_num() - 1)) {
-    failure("Popping values from stack frame (locals or worse) at IP %d\n", state.ip);
-  }
-  if (ESP >= state.bf->stack_ptr) {
-    failure("Stack underflow at IP %d\n", state.ip);
-  }
   __gc_stack_top += sizeof(size_t);
   return *(ESP - 1);
 }
 
 inline static aint * global(const unsigned int index) {
-  if (index >= state.bf->global_area_size) {
-    failure("Global variable %d out of bounds. Number of globals %d\n", index, state.bf->global_area_size);
-  }
   return &state.bf->global_ptr[index];
 }
 
 inline static aint * local(const unsigned int index) {
-  if (index >= get_locals_num()) {
-    failure("Local variable %d out of bounds. Number of locals %d\n", index, get_locals_num());
-  }
   return state.ebp - 3 - index; // - 2 because we saved the number of args between ebp and locals
 }
 
 inline static aint * arg(const unsigned int index) {
   const aint num_args = UNBOX(*(state.ebp - 1));
-  if (index >= num_args) {
-    failure("Argument %d out of bounds. Number of arguments %d\n", index, num_args);
-  }
   return state.ebp + 3 + num_args - 1 - index; // + 3 because we saved ebp and ip of the caller and any function has an implicit first closure argument
 }
 
@@ -116,18 +102,11 @@ inline static aint * closure(const unsigned int index) {
 }
 
 inline static int read(const unsigned int bytes) {
-  if (state.ip + bytes > state.bf->code_ptr + state.bf->code_size) {
-    failure("When reading %d bytes IP counter %d can move outside of the code section of size\n", bytes, state.ip,
-            state.bf->code_size);
-  }
   state.ip += bytes;
   return *(int *)(state.ip - bytes);
 }
 
 inline static void jump(const unsigned int offset) {
-  if (offset >= state.bf->code_size) {
-    failure("Jump with offset %d is outside of code section of size %d\n", offset, state.bf->code_size);
-  }
   state.ip = state.bf->code_ptr + offset;
 }
 
@@ -135,68 +114,6 @@ inline static void jump(const unsigned int offset) {
 #define BYTE (read(1))
 #define STRING get_string(state.bf, INT)
 #define FAIL failure("ERROR: invalid opcode %d-%d\n", h, l)
-
-enum Instruction {
-  // High nibble values (h)
-  BINOP = 0,
-  CONST = 1,
-  LD = 2,
-  LDA = 3,
-  ST = 4,
-  CONTROL = 5,
-  PATT = 6,
-  BUILTIN = 7,
-  STOP = 15,
-
-  // Low nibble values for CONST group (h=1)
-  CONST_INT = 0,
-  CONST_STRING = 1,
-  MAKE_SEXP = 2,
-  STI = 3,
-  STA = 4,
-  JMP = 5,
-  END = 6,
-  RET = 7,
-  DROP = 8,
-  DUP = 9,
-  SWAP = 10,
-  ELEM = 11,
-
-  // Low nibble values for LD/LDA/ST variable locations
-  GLOBAL = 0,
-  LOCAL = 1,
-  ARG = 2,
-  CLOSURE_VAR = 3,
-
-  // Low nibble values for CONTROL group (h=5)
-  CJMPz = 0,
-  CJMPnz = 1,
-  BEGIN = 2,
-  CBEGIN = 3,
-  MAKE_CLOSURE = 4,
-  CALLC = 5,
-  CALL = 6,
-  TAG = 7,
-  MAKE_ARRAY = 8,
-  FAIL_I = 9,
-  LINE = 10,
-
-  // Low nibble values for PATT group (h=6)
-  PATT_STR_EQ = 0,
-  PATT_STRING = 1,
-  PATT_ARRAY = 2,
-  PATT_SEXP = 3,
-  PATT_BOXED = 4,
-  PATT_UNBOXED = 5,
-  PATT_CLOSURE = 6,
-
-  // Low nibble values for BUILTIN group (h=7)
-  BUILTIN_Lread = 0,
-  BUILTIN_Lwrite = 1,
-  BUILTIN_Llength = 2,
-  BUILTIN_Lstring = 3,
-  BUILTIN_Barray = 4
-};
 
 inline static aint * var(const unsigned char designation, const unsigned int index, const unsigned char h, const unsigned char l) {
   switch (designation) {
@@ -264,9 +181,6 @@ void interpret(const bytefile *bf) {
             const char * tag = STRING;
             const unsigned int n = INT;
             DEBUG_LOG("SEXP\t%s ", tag);
-            if (__gc_stack_top + n * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("Invalid sexpr length %d at %ip", n, state.ip);
-            }
             push(LtagHash((char *) tag));
             const aint result = (aint) Bsexp_reversed(ESP, BOX(n + 1));
             __gc_stack_top += (n + 1) * sizeof(size_t);
@@ -388,10 +302,15 @@ void interpret(const bytefile *bf) {
 
           case BEGIN:
           case CBEGIN: {
-            const int args_num = INT;
-            const int locals_num = INT;
+            const unsigned int tmp = INT;
+            const unsigned int args_num = tmp & 0xFFFF;
+            const unsigned int max_stack_size = tmp >> 16;
+            const unsigned int locals_num = INT;
             DEBUG_LOG("BEGIN\t%d ", args_num);
             DEBUG_LOG("%d", locals_num);
+            if ((size_t) (ESP - max_stack_size - 2 - locals_num) < __gc_stack_bottom - STACK_SIZE * sizeof(aint)) {
+              throw std::runtime_error("Not enough space on stack to interpret function at offset " + hex8((int32_t) (state.ip - state.bf->code_ptr - 1)));
+            }
             push(BOX(args_num));
             push(BOX(locals_num));
             for (int i = 0; i < locals_num; i++) {
@@ -417,9 +336,6 @@ void interpret(const bytefile *bf) {
           case CALLC: {
             const int args_num = INT;
             DEBUG_LOG("CALLC\t%d", args_num);
-            if (__gc_stack_top + args_num * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("CALLC have invalid number of arguments %d at %ip", args_num, state.ip);
-            }
             const aint closure_ptr = *(ESP + args_num);
             for (int i = args_num - 1; i >= 0; i--) {
               *(ESP + i + 1) = *(ESP + i);
@@ -535,9 +451,6 @@ void interpret(const bytefile *bf) {
           case BUILTIN_Barray: {
             const unsigned int len = INT;
             DEBUG_LOG("CALL\tBarray %d", len);
-            if (__gc_stack_top + len * sizeof(aint) > (size_t) state.bf->stack_ptr) {
-              failure("Invalid array length %d at ip %d\n", len, state.ip);
-            }
             const aint result = (aint) Barray_reversed(ESP, BOX(len));
             __gc_stack_top += len * sizeof(size_t);
             push(result);
@@ -557,7 +470,7 @@ void interpret(const bytefile *bf) {
     DEBUG_LOG("\n");
   } while (1);
 stop:
-  printf("<done>\n");
+  // fprintf(stderr, "<done>\n");
 }
 
 enum Binop {
@@ -583,7 +496,7 @@ inline static void eval_binop(const unsigned char op) {
       }
 
       ASSERT_BOXED("captured -:1", q);
-      push(BOX(p - q));
+      push(BOX((size_t *) p - (size_t *) q));
       break;
     case MUL:
       ASSERT_UNBOXED("captured *:1", p);
