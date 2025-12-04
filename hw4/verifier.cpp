@@ -151,7 +151,7 @@ void validate_variable_index(const bytefile *const bf, const int args_num, const
 }
 
 void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<int16_t> &used) {
-  int32_t current_offset = 0;
+  int32_t current_offset = bf->entrypoint_offset;
   int16_t max_stack = 0;
   std::vector<int32_t> begin_offsets(0);
   while (current_offset < bf->code_size) {
