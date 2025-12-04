@@ -151,10 +151,10 @@ void validate_variable_index(const bytefile *const bf, const int args_num, const
 }
 
 void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<int16_t> &used) {
-  int32_t current_offset = bf->entrypoint_offset;
+  uint32_t current_offset = bf->entrypoint_offset;
   int16_t max_stack = 0;
-  std::vector<int32_t> begin_offsets(0);
-  while (current_offset < bf->code_size) {
+  std::vector<uint32_t> begin_offsets(0);
+  do {
     auto instruction = decodeInstruction(bf, current_offset);
     // fprintf(stderr, "%s: %s\n",
     //           hex8(offset).c_str(),
@@ -162,7 +162,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
     //   );
     max_stack = std::max(used[current_offset], max_stack);
     if (instruction.highTag == CONST && instruction.lowTag == END) {
-      int32_t begin_first_arg_offset = begin_offsets.back() + 1;
+      uint32_t begin_first_arg_offset = begin_offsets.back() + 1;
       begin_offsets.pop_back();
       if ((int32_t) bf->code_ptr[begin_first_arg_offset] >= 1 << 16) {
         throw std::runtime_error(
@@ -181,7 +181,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
       begin_offsets.push_back(current_offset);
     }
     if (used[current_offset] != -1) {
-      const int32_t begin_offset = begin_offsets.back();
+      const uint32_t begin_offset = begin_offsets.back();
       auto instruction_begin = decodeInstruction(bf, begin_offset);
       const int args_num = instruction_begin.args[0] & 0xFFFF;
       const int locals_num = instruction_begin.args[1];
@@ -192,7 +192,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
       }
       if (instruction.highTag == CONTROL && instruction.lowTag == MAKE_CLOSURE) {
         for (int i = 0; i < instruction.args[1]; i++) {
-          const int32_t tag = ((uint32_t) instruction.args[i + 2]) >> 30;
+          const uint32_t tag = ((uint32_t) instruction.args[i + 2]) >> 30;
           const int index = instruction.args[i + 2] & 0x3FFFFFFF;
           validate_variable_index(bf, args_num, locals_num, tag, index);
         }
@@ -206,7 +206,7 @@ void verify_and_calc_max_stack_size(const bytefile *const bf, const std::vector<
       }
     }
     current_offset += instruction.length();
-  }
+  } while (!begin_offsets.empty());
 }
 
 void print_statistics(const bytefile *const bf, const std::vector<int16_t> &used) {
